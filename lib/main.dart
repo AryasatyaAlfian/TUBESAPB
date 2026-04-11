@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,116 +8,651 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'Absensi Kampus',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const AuthPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class AuthPage extends StatefulWidget {
+  const AuthPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<AuthPage> createState() => _AuthPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _AuthPageState extends State<AuthPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _incrementCounter() {
+  void _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan kata sandi harus diisi.')),
+      );
+      return;
+    }
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _isLoading = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+
+    if (_emailController.text == 'admin@kampus.com' &&
+        _passwordController.text == '123456') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email atau kata sandi salah.')),
+      );
+    }
+
+    setState(() {
+      _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.school, size: 88, color: Colors.indigo),
+              const SizedBox(height: 16),
+              Text('Sistem Absensi Kampus',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              const Text(
+                'Masuk untuk memulai pengelolaan absensi mahasiswa dan dosen.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Kata Sandi',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.login),
+                  label: const Text('Masuk'),
+                  onPressed: _isLoading ? null : _login,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text('Gunakan admin@kampus.com / 123456 untuk demo.'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum AppSection { dashboard, mahasiswa, dosen, profile }
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  AppSection _selectedSection = AppSection.dashboard;
+
+  final List<Map<String, String>> _mahasiswaAbsensi = [];
+  final List<Map<String, String>> _dosenAbsensi = [];
+
+  void _logout() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthPage()),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, AppSection section) {
+    final bool selected = _selectedSection == section;
+    return ListTile(
+      leading: Icon(icon, color: selected ? Colors.indigo : null),
+      title: Text(title),
+      selected: selected,
+      onTap: () {
+        setState(() {
+          _selectedSection = section;
+        });
+        Navigator.of(context).pop();
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(_sectionTitle()),
+        actions: [
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    CircleAvatar(
+                      radius: 28,
+                      child: Icon(Icons.people, size: 32),
+                    ),
+                    SizedBox(height: 12),
+                    Text('Admin Kampus', style: TextStyle(fontSize: 18)),
+                    SizedBox(height: 4),
+                    Text('admin@kampus.com', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+              _buildDrawerItem(Icons.dashboard, 'Dashboard', AppSection.dashboard),
+              _buildDrawerItem(Icons.school, 'Absensi Mahasiswa', AppSection.mahasiswa),
+              _buildDrawerItem(Icons.person, 'Absensi Dosen', AppSection.dosen),
+              const Divider(),
+              _buildDrawerItem(Icons.account_circle, 'Profil', AppSection.profile),
+              const Spacer(),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Keluar'),
+                onTap: _logout,
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _buildSection(),
+      ),
+    );
+  }
+
+  String _sectionTitle() {
+    switch (_selectedSection) {
+      case AppSection.dashboard:
+        return 'Dashboard Absensi';
+      case AppSection.mahasiswa:
+        return 'Absensi Mahasiswa';
+      case AppSection.dosen:
+        return 'Absensi Dosen';
+      case AppSection.profile:
+        return 'Profil Pengguna';
+    }
+  }
+
+  Widget _buildSection() {
+    switch (_selectedSection) {
+      case AppSection.dashboard:
+        return DashboardView(
+          mahasiswaCount: _mahasiswaAbsensi.length,
+          dosenCount: _dosenAbsensi.length,
+          latestMahasiswa: _mahasiswaAbsensi,
+          latestDosen: _dosenAbsensi,
+        );
+      case AppSection.mahasiswa:
+        return MahasiswaAbsensiView(
+          records: _mahasiswaAbsensi,
+          onSubmit: (record) {
+            setState(() {
+              _mahasiswaAbsensi.insert(0, record);
+            });
+          },
+        );
+      case AppSection.dosen:
+        return DosenAbsensiView(
+          records: _dosenAbsensi,
+          onSubmit: (record) {
+            setState(() {
+              _dosenAbsensi.insert(0, record);
+            });
+          },
+        );
+      case AppSection.profile:
+        return ProfileView(onLogout: _logout);
+    }
+  }
+}
+
+class DashboardView extends StatelessWidget {
+  const DashboardView({
+    super.key,
+    required this.mahasiswaCount,
+    required this.dosenCount,
+    required this.latestMahasiswa,
+    required this.latestDosen,
+  });
+
+  final int mahasiswaCount;
+  final int dosenCount;
+  final List<Map<String, String>> latestMahasiswa;
+  final List<Map<String, String>> latestDosen;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ringkasan Hari Ini', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(child: _infoTile(context, 'Mahasiswa', mahasiswaCount)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _infoTile(context, 'Dosen', dosenCount)),
+                  ],
+                ),
+              ],
             ),
+          ),
+        ),
+        _activityCard('Absensi Mahasiswa Terbaru', latestMahasiswa, context, isMahasiswa: true),
+        const SizedBox(height: 12),
+        _activityCard('Absensi Dosen Terbaru', latestDosen, context, isMahasiswa: false),
+      ],
+    );
+  }
+
+  Widget _infoTile(BuildContext context, String label, int value) {
+    return Container(
+      padding: const EdgeInsets.all(18.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _activityCard(String title, List<Map<String, String>> records, BuildContext context,
+      {required bool isMahasiswa}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            if (records.isEmpty)
+              const Text('Belum ada absensi.', style: TextStyle(color: Colors.grey))
+            else
+              Column(
+                children: records.take(3).map((record) {
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(record['nama'] ?? '-'),
+                    subtitle: Text(isMahasiswa
+                        ? '${record['nim']} • ${record['matkul']} • ${record['keterangan']}'
+                        : '${record['nip']} • ${record['matkul']} • ${record['status']}'),
+                    trailing: Text(record['waktu'] ?? '-'),
+                  );
+                }).toList(),
+              ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+    );
+  }
+}
+
+class MahasiswaAbsensiView extends StatefulWidget {
+  const MahasiswaAbsensiView({
+    super.key,
+    required this.records,
+    required this.onSubmit,
+  });
+
+  final List<Map<String, String>> records;
+  final void Function(Map<String, String>) onSubmit;
+
+  @override
+  State<MahasiswaAbsensiView> createState() => _MahasiswaAbsensiViewState();
+}
+
+class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _nimController = TextEditingController();
+  final TextEditingController _matkulController = TextEditingController();
+  String _keterangan = 'Hadir';
+
+  void _submit() {
+    if (_namaController.text.isEmpty || _nimController.text.isEmpty || _matkulController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mohon lengkapi semua data mahasiswa.')),
+      );
+      return;
+    }
+
+    widget.onSubmit({
+      'nama': _namaController.text,
+      'nim': _nimController.text,
+      'matkul': _matkulController.text,
+      'keterangan': _keterangan,
+      'waktu': DateFormat('dd MMM yyyy HH:mm').format(DateTime.now()),
+    });
+
+    _namaController.clear();
+    _nimController.clear();
+    _matkulController.clear();
+    setState(() {
+      _keterangan = 'Hadir';
+    });
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _nimController.dispose();
+    _matkulController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const Text('Form Absensi Mahasiswa', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _namaController,
+          decoration: const InputDecoration(labelText: 'Nama Mahasiswa', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _nimController,
+          decoration: const InputDecoration(labelText: 'NIM', border: OutlineInputBorder()),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _matkulController,
+          decoration: const InputDecoration(labelText: 'Mata Kuliah', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _keterangan,
+          decoration: const InputDecoration(labelText: 'Keterangan', border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: 'Hadir', child: Text('Hadir')),
+            DropdownMenuItem(value: 'Izin', child: Text('Izin')),
+            DropdownMenuItem(value: 'Sakit', child: Text('Sakit')),
+            DropdownMenuItem(value: 'Alfa', child: Text('Alfa')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _keterangan = value;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.check),
+          label: const Text('Simpan Absensi'),
+          onPressed: _submit,
+        ),
+        const SizedBox(height: 24),
+        const Text('Daftar Absensi Mahasiswa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (widget.records.isEmpty)
+          const Text('Belum ada data absensi mahasiswa.', style: TextStyle(color: Colors.grey))
+        else
+          ...widget.records.map((record) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(record['nama'] ?? '-'),
+                subtitle: Text('${record['nim']} • ${record['matkul']} • ${record['keterangan']}'),
+                trailing: Text(record['waktu'] ?? '-'),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class DosenAbsensiView extends StatefulWidget {
+  const DosenAbsensiView({
+    super.key,
+    required this.records,
+    required this.onSubmit,
+  });
+
+  final List<Map<String, String>> records;
+  final void Function(Map<String, String>) onSubmit;
+
+  @override
+  State<DosenAbsensiView> createState() => _DosenAbsensiViewState();
+}
+
+class _DosenAbsensiViewState extends State<DosenAbsensiView> {
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _nipController = TextEditingController();
+  final TextEditingController _matkulController = TextEditingController();
+  final TextEditingController _kelasController = TextEditingController();
+  String _status = 'Masuk';
+
+  void _submit() {
+    if (_namaController.text.isEmpty || _nipController.text.isEmpty || _matkulController.text.isEmpty || _kelasController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mohon lengkapi semua data dosen.')),
+      );
+      return;
+    }
+
+    widget.onSubmit({
+      'nama': _namaController.text,
+      'nip': _nipController.text,
+      'matkul': _matkulController.text,
+      'kelas': _kelasController.text,
+      'status': _status,
+      'waktu': DateFormat('dd MMM yyyy HH:mm').format(DateTime.now()),
+    });
+
+    _namaController.clear();
+    _nipController.clear();
+    _matkulController.clear();
+    _kelasController.clear();
+    setState(() {
+      _status = 'Masuk';
+    });
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _nipController.dispose();
+    _matkulController.dispose();
+    _kelasController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const Text('Form Absensi Dosen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _namaController,
+          decoration: const InputDecoration(labelText: 'Nama Dosen', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _nipController,
+          decoration: const InputDecoration(labelText: 'NIP', border: OutlineInputBorder()),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _matkulController,
+          decoration: const InputDecoration(labelText: 'Mata Kuliah', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _kelasController,
+          decoration: const InputDecoration(labelText: 'Kelas / Pertemuan', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _status,
+          decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: 'Masuk', child: Text('Masuk')),
+            DropdownMenuItem(value: 'Dinas Luar', child: Text('Dinas Luar')),
+            DropdownMenuItem(value: 'Online', child: Text('Online')),
+            DropdownMenuItem(value: 'Tidak Hadir', child: Text('Tidak Hadir')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _status = value;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.check),
+          label: const Text('Simpan Absensi'),
+          onPressed: _submit,
+        ),
+        const SizedBox(height: 24),
+        const Text('Daftar Absensi Dosen', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (widget.records.isEmpty)
+          const Text('Belum ada data absensi dosen.', style: TextStyle(color: Colors.grey))
+        else
+          ...widget.records.map((record) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(record['nama'] ?? '-'),
+                subtitle: Text('${record['nip']} • ${record['matkul']} • ${record['kelas']}'),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(record['status'] ?? '-'),
+                    const SizedBox(height: 4),
+                    Text(record['waktu'] ?? '-', style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class ProfileView extends StatelessWidget {
+  const ProfileView({super.key, required this.onLogout});
+
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('Profil Pengguna', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                SizedBox(height: 12),
+                Text('Nama: Admin Kampus'),
+                SizedBox(height: 4),
+                Text('Email: admin@kampus.com'),
+                SizedBox(height: 4),
+                Text('Peran: Administrator Sistem Absensi'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text('Tentang Aplikasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        const Text(
+          'Aplikasi ini dirancang untuk membantu pengelolaan absensi kampus dengan cara yang mudah, modern, dan profesional. '
+          'Pengguna dapat mencatat kehadiran mahasiswa serta data absensi dosen secara cepat dan rapi.',
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          icon: const Icon(Icons.logout),
+          label: const Text('Logout'),
+          onPressed: onLogout,
+        ),
+      ],
     );
   }
 }
