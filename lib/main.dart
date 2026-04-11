@@ -15,7 +15,9 @@ class MyApp extends StatelessWidget {
       title: 'Absensi Kampus',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red).copyWith(
+          secondary: Colors.white,
+        ),
       ),
       home: const AuthPage(),
     );
@@ -74,7 +76,7 @@ class _AuthPageState extends State<AuthPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.school, size: 88, color: Colors.indigo),
+              const Icon(Icons.school, size: 88, color: Colors.red),
               const SizedBox(height: 16),
               Text('Sistem Absensi Kampus',
                   style: Theme.of(context).textTheme.headlineSmall),
@@ -152,7 +154,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildDrawerItem(IconData icon, String title, AppSection section) {
     final bool selected = _selectedSection == section;
     return ListTile(
-      leading: Icon(icon, color: selected ? Colors.indigo : null),
+      leading: Icon(icon, color: selected ? Colors.red : null),
       title: Text(title),
       selected: selected,
       onTap: () {
