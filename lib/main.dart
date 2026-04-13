@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart' as mobile_scanner;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -378,6 +381,137 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
   final TextEditingController _matkulController = TextEditingController();
   String _keterangan = 'Hadir';
 
+  void _scanQR() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Scan QR Code'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.flash_on),
+                onPressed: () {
+                  // Toggle flash if needed, but for simplicity, skip
+                },
+              ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Container(
+                color: Colors.black,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+              mobile_scanner.MobileScanner(
+                onDetect: (capture) {
+                  final barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                    try {
+                      final data = jsonDecode(barcodes.first.rawValue!);
+                      if (data is Map && data.containsKey('matkul')) {
+                        setState(() {
+                          _matkulController.text = data['matkul'] ?? '';
+                        });
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('QR berhasil di-scan! Mata kuliah terisi otomatis.')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('QR code tidak mengandung data mata kuliah.')),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('QR code tidak valid atau rusak.')),
+                      );
+                    }
+                  }
+                },
+              ),
+              // Overlay untuk area scan
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Arahkan QR Code ke dalam kotak ini',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+              // Petak-petak di sudut
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _submit() {
     if (_namaController.text.isEmpty || _nimController.text.isEmpty || _matkulController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -450,6 +584,12 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
           },
         ),
         const SizedBox(height: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR untuk Mata Kuliah'),
+          onPressed: _scanQR,
+        ),
+        const SizedBox(height: 12),
         FilledButton.icon(
           icon: const Icon(Icons.check),
           label: const Text('Simpan Absensi'),
@@ -581,6 +721,45 @@ class _DosenAbsensiViewState extends State<DosenAbsensiView> {
           icon: const Icon(Icons.check),
           label: const Text('Simpan Absensi'),
           onPressed: _submit,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          icon: const Icon(Icons.qr_code),
+          label: const Text('Generate QR untuk Mahasiswa'),
+          onPressed: () {
+            if (_matkulController.text.isEmpty || _kelasController.text.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Mohon isi mata kuliah dan kelas terlebih dahulu.')),
+              );
+              return;
+            }
+            final qrData = jsonEncode({
+              'matkul': _matkulController.text,
+              'kelas': _kelasController.text,
+              'waktu': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+            });
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('QR Code Absensi'),
+                content: SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 200.0,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Tutup'),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 24),
         const Text('Daftar Absensi Dosen', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

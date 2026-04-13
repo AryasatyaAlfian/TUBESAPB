@@ -13,6 +13,8 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   intl: ^0.18.1
+  mobile_scanner: ^7.2.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
