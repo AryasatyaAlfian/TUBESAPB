@@ -15,6 +15,11 @@ dependencies:
   intl: ^0.18.1
   mobile_scanner: ^7.2.0
   qr_flutter: ^4.1.0
+<<<<<<< HEAD
+=======
+  http: ^1.2.1
+  shared_preferences: ^2.2.3
+>>>>>>> Gilang
 
 dev_dependencies:
   flutter_test:

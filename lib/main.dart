@@ -3,6 +3,14 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' as mobile_scanner;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
+<<<<<<< HEAD
+=======
+import 'api_service.dart';
+import 'screens/mahasiswa_dashboard.dart';
+import 'screens/dosen_dashboard.dart';
+import 'screens/mahasiswa_izin_screen.dart';
+import 'screens/dosen_izin_screen.dart';
+>>>>>>> Gilang
 
 void main() {
   runApp(const MyApp());
@@ -35,7 +43,13 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+<<<<<<< HEAD
   bool _isLoading = false;
+=======
+  String _userType = 'mahasiswa';
+  bool _isLoading = false;
+  final ApiService _apiService = ApiService();
+>>>>>>> Gilang
 
   void _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -49,6 +63,7 @@ class _AuthPageState extends State<AuthPage> {
       _isLoading = true;
     });
 
+<<<<<<< HEAD
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
 
@@ -65,11 +80,548 @@ class _AuthPageState extends State<AuthPage> {
 
     setState(() {
       _isLoading = false;
+=======
+    final result = await _apiService.login(
+      _emailController.text,
+      _passwordController.text,
+      _userType,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
     });
+
+    if (result['success']) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomePage(user: result['user'])),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Login gagal.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.school, size: 88, color: Colors.indigo),
+              const SizedBox(height: 16),
+              Text('Sistem Absensi Kampus',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              const Text(
+                'Masuk untuk memulai pengelolaan absensi mahasiswa dan dosen.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Kata Sandi',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'mahasiswa', label: Text('Mahasiswa')),
+                  ButtonSegment(value: 'dosen', label: Text('Dosen')),
+                ],
+                selected: {_userType},
+                onSelectionChanged: (Set<String> newSelection) {
+                  setState(() {
+                    _userType = newSelection.first;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.login),
+                  label: const Text('Masuk'),
+                  onPressed: _isLoading ? null : _login,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text('Pastikan Laravel API berjalan di localhost:8000 (emulator: 10.0.2.2).'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum AppSection { dashboard, mahasiswa, dosen, profile, izin, enrollments }
+
+class HomePage extends StatefulWidget {
+  final Map<String, dynamic> user;
+  const HomePage({super.key, required this.user});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  AppSection _selectedSection = AppSection.dashboard;
+
+  final List<Map<String, String>> _mahasiswaAbsensi = [];
+  final List<Map<String, String>> _dosenAbsensi = [];
+
+  void _logout() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthPage()),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, AppSection section) {
+    final bool selected = _selectedSection == section;
+    return ListTile(
+      leading: Icon(icon, color: selected ? Colors.indigo : null),
+      title: Text(title),
+      selected: selected,
+      onTap: () {
+        setState(() {
+          _selectedSection = section;
+        });
+        Navigator.of(context).pop();
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_sectionTitle()),
+        actions: [
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+        ],
+      ),
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const CircleAvatar(
+                      radius: 28,
+                      child: Icon(Icons.people, size: 32),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(widget.user['name'] ?? 'Guest', style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(widget.user['email'] ?? '', style: const TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+              _buildDrawerItem(Icons.dashboard, 'Dashboard', AppSection.dashboard),
+              if (widget.user['role'] == 'mahasiswa') ...[
+                _buildDrawerItem(Icons.school, 'Scan QR Absensi', AppSection.mahasiswa),
+                _buildDrawerItem(Icons.edit_document, 'Pengajuan Izin', AppSection.izin),
+                _buildDrawerItem(Icons.library_books, 'Ambil Matkul', AppSection.enrollments),
+              ],
+              if (widget.user['role'] == 'dosen') ...[
+                _buildDrawerItem(Icons.person, 'Generate QR', AppSection.dosen),
+                _buildDrawerItem(Icons.fact_check, 'Validasi Izin', AppSection.izin),
+                _buildDrawerItem(Icons.people, 'Validasi Mahasiswa', AppSection.enrollments),
+              ],
+              const Divider(),
+              _buildDrawerItem(Icons.account_circle, 'Profil', AppSection.profile),
+              const Spacer(),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Keluar'),
+                onTap: _logout,
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _buildSection(),
+      ),
+    );
+  }
+
+  String _sectionTitle() {
+    switch (_selectedSection) {
+      case AppSection.dashboard:
+        return 'Dashboard Absensi';
+      case AppSection.mahasiswa:
+        return 'Absensi Mahasiswa';
+      case AppSection.dosen:
+        return 'Absensi Dosen';
+      case AppSection.profile:
+        return 'Profil Pengguna';
+      case AppSection.izin:
+        return 'Manajemen Izin';
+      case AppSection.enrollments:
+        return 'Perkuliahan';
+    }
+  }
+
+  Widget _buildSection() {
+    switch (_selectedSection) {
+      case AppSection.dashboard:
+        if (widget.user['role'] == 'dosen') {
+          return const DosenDashboardView();
+        } else {
+          return const MahasiswaDashboardView();
+        }
+      case AppSection.mahasiswa:
+        return MahasiswaAbsensiView(
+          records: _mahasiswaAbsensi,
+          onSubmit: (record) {
+            setState(() {
+              _mahasiswaAbsensi.insert(0, record);
+            });
+          },
+        );
+      case AppSection.dosen:
+        return DosenAbsensiView(
+          records: _dosenAbsensi,
+          onSubmit: (record) {
+            setState(() {
+              _dosenAbsensi.insert(0, record);
+            });
+          },
+        );
+      case AppSection.profile:
+        return ProfileView(onLogout: _logout);
+      case AppSection.izin:
+        if (widget.user['role'] == 'dosen') {
+          return const DosenIzinView();
+        } else {
+          return const MahasiswaIzinView();
+        }
+      case AppSection.enrollments:
+        return const Center(child: Text('Halaman Fitur Kelas / Enrollments Belum Diimplementasi'));
+    }
+  }
+}
+
+class DashboardView extends StatelessWidget {
+  const DashboardView({
+    super.key,
+    required this.mahasiswaCount,
+    required this.dosenCount,
+    required this.latestMahasiswa,
+    required this.latestDosen,
+  });
+
+  final int mahasiswaCount;
+  final int dosenCount;
+  final List<Map<String, String>> latestMahasiswa;
+  final List<Map<String, String>> latestDosen;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ringkasan Hari Ini', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(child: _infoTile(context, 'Mahasiswa', mahasiswaCount)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _infoTile(context, 'Dosen', dosenCount)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        _activityCard('Absensi Mahasiswa Terbaru', latestMahasiswa, context, isMahasiswa: true),
+        const SizedBox(height: 12),
+        _activityCard('Absensi Dosen Terbaru', latestDosen, context, isMahasiswa: false),
+      ],
+    );
+  }
+
+  Widget _infoTile(BuildContext context, String label, int value) {
+    return Container(
+      padding: const EdgeInsets.all(18.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _activityCard(String title, List<Map<String, String>> records, BuildContext context,
+      {required bool isMahasiswa}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            if (records.isEmpty)
+              const Text('Belum ada absensi.', style: TextStyle(color: Colors.grey))
+            else
+              Column(
+                children: records.take(3).map((record) {
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(record['nama'] ?? '-'),
+                    subtitle: Text(isMahasiswa
+                        ? '${record['nim']} • ${record['matkul']} • ${record['keterangan']}'
+                        : '${record['nip']} • ${record['matkul']} • ${record['status']}'),
+                    trailing: Text(record['waktu'] ?? '-'),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MahasiswaAbsensiView extends StatefulWidget {
+  const MahasiswaAbsensiView({
+    super.key,
+    required this.records,
+    required this.onSubmit,
+  });
+
+  final List<Map<String, String>> records;
+  final void Function(Map<String, String>) onSubmit;
+
+  @override
+  State<MahasiswaAbsensiView> createState() => _MahasiswaAbsensiViewState();
+}
+
+class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _nimController = TextEditingController();
+  final TextEditingController _matkulController = TextEditingController();
+  String _keterangan = 'Hadir';
+
+  void _scanQR() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Scan QR Code'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.flash_on),
+                onPressed: () {
+                  // Toggle flash if needed, but for simplicity, skip
+                },
+              ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Container(
+                color: Colors.black,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+              mobile_scanner.MobileScanner(
+                onDetect: (capture) async {
+                  final barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                    final String token = barcodes.first.rawValue!;
+                    
+                    // Stop scanning while processing
+                    Navigator.of(context).pop();
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Memproses QR Code...')),
+                    );
+                    
+                    final apiService = ApiService();
+                    final result = await apiService.scanQr(token);
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(result['message'] ?? (result['success'] ? 'Sukses' : 'Gagal')),
+                          backgroundColor: result['success'] ? Colors.green : Colors.red,
+                        ),
+                      );
+                      
+                      if (result['success']) {
+                        // Let parent view know to refresh dashboard
+                        // This requires some callback or state update
+                      }
+                    }
+                  }
+                },
+              ),
+              // Overlay untuk area scan
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Arahkan QR Code ke dalam kotak ini',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+              // Petak-petak di sudut
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    if (_namaController.text.isEmpty || _nimController.text.isEmpty || _matkulController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mohon lengkapi semua data mahasiswa.')),
+      );
+      return;
+    }
+
+    widget.onSubmit({
+      'nama': _namaController.text,
+      'nim': _nimController.text,
+      'matkul': _matkulController.text,
+      'keterangan': _keterangan,
+      'waktu': DateFormat('dd MMM yyyy HH:mm').format(DateTime.now()),
+    });
+
+    _namaController.clear();
+    _nimController.clear();
+    _matkulController.clear();
+    setState(() {
+      _keterangan = 'Hadir';
+>>>>>>> Gilang
+    });
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _nimController.dispose();
+    _matkulController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+<<<<<<< HEAD
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -127,10 +679,79 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       ),
+=======
+    return ListView(
+      children: [
+        const Text('Form Absensi Mahasiswa', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _namaController,
+          decoration: const InputDecoration(labelText: 'Nama Mahasiswa', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _nimController,
+          decoration: const InputDecoration(labelText: 'NIM', border: OutlineInputBorder()),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _matkulController,
+          decoration: const InputDecoration(labelText: 'Mata Kuliah', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _keterangan,
+          decoration: const InputDecoration(labelText: 'Keterangan', border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: 'Hadir', child: Text('Hadir')),
+            DropdownMenuItem(value: 'Izin', child: Text('Izin')),
+            DropdownMenuItem(value: 'Sakit', child: Text('Sakit')),
+            DropdownMenuItem(value: 'Alfa', child: Text('Alfa')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _keterangan = value;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR untuk Mata Kuliah'),
+          onPressed: _scanQR,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          icon: const Icon(Icons.check),
+          label: const Text('Simpan Absensi'),
+          onPressed: _submit,
+        ),
+        const SizedBox(height: 24),
+        const Text('Daftar Absensi Mahasiswa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (widget.records.isEmpty)
+          const Text('Belum ada data absensi mahasiswa.', style: TextStyle(color: Colors.grey))
+        else
+          ...widget.records.map((record) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(record['nama'] ?? '-'),
+                subtitle: Text('${record['nim']} • ${record['matkul']} • ${record['keterangan']}'),
+                trailing: Text(record['waktu'] ?? '-'),
+              ),
+            );
+          }),
+      ],
+>>>>>>> Gilang
     );
   }
 }
 
+<<<<<<< HEAD
 enum AppSection { dashboard, mahasiswa, dosen, profile }
 
 class HomePage extends StatefulWidget {
@@ -616,6 +1237,8 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
   }
 }
 
+=======
+>>>>>>> Gilang
 class DosenAbsensiView extends StatefulWidget {
   const DosenAbsensiView({
     super.key,
