@@ -3,6 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart' as mobile_scanner;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
+import 'api_service.dart';
+import 'screens/mahasiswa_dashboard.dart';
+import 'screens/dosen_dashboard.dart';
+import 'screens/mahasiswa_izin_screen.dart';
+import 'screens/dosen_izin_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,7 +40,9 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  String _userType = 'mahasiswa';
   bool _isLoading = false;
+  final ApiService _apiService = ApiService();
 
   void _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -49,23 +56,27 @@ class _AuthPageState extends State<AuthPage> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
+    final result = await _apiService.login(
+      _emailController.text,
+      _passwordController.text,
+      _userType,
+    );
 
-    if (_emailController.text == 'admin@kampus.com' &&
-        _passwordController.text == '123456') {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email atau kata sandi salah.')),
-      );
-    }
+    if (!mounted) return;
 
     setState(() {
       _isLoading = false;
     });
+
+    if (result['success']) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomePage(user: result['user'])),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Login gagal.')),
+      );
+    }
   }
 
   @override
@@ -106,6 +117,19 @@ class _AuthPageState extends State<AuthPage> {
                 ),
                 obscureText: true,
               ),
+              const SizedBox(height: 16),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'mahasiswa', label: Text('Mahasiswa')),
+                  ButtonSegment(value: 'dosen', label: Text('Dosen')),
+                ],
+                selected: {_userType},
+                onSelectionChanged: (Set<String> newSelection) {
+                  setState(() {
+                    _userType = newSelection.first;
+                  });
+                },
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -122,7 +146,7 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text('Gunakan admin@kampus.com / 123456 untuk demo.'),
+              const Text('Pastikan Laravel API berjalan di localhost:8000 (emulator: 10.0.2.2).'),
             ],
           ),
         ),
@@ -131,10 +155,11 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
-enum AppSection { dashboard, mahasiswa, dosen, profile }
+enum AppSection { dashboard, mahasiswa, dosen, profile, izin, enrollments }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Map<String, dynamic> user;
+  const HomePage({super.key, required this.user});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -186,21 +211,29 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    CircleAvatar(
+                  children: [
+                    const CircleAvatar(
                       radius: 28,
                       child: Icon(Icons.people, size: 32),
                     ),
-                    SizedBox(height: 12),
-                    Text('Admin Kampus', style: TextStyle(fontSize: 18)),
-                    SizedBox(height: 4),
-                    Text('admin@kampus.com', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 12),
+                    Text(widget.user['name'] ?? 'Guest', style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(widget.user['email'] ?? '', style: const TextStyle(fontSize: 14)),
                   ],
                 ),
               ),
               _buildDrawerItem(Icons.dashboard, 'Dashboard', AppSection.dashboard),
-              _buildDrawerItem(Icons.school, 'Absensi Mahasiswa', AppSection.mahasiswa),
-              _buildDrawerItem(Icons.person, 'Absensi Dosen', AppSection.dosen),
+              if (widget.user['role'] == 'mahasiswa') ...[
+                _buildDrawerItem(Icons.school, 'Scan QR Absensi', AppSection.mahasiswa),
+                _buildDrawerItem(Icons.edit_document, 'Pengajuan Izin', AppSection.izin),
+                _buildDrawerItem(Icons.library_books, 'Ambil Matkul', AppSection.enrollments),
+              ],
+              if (widget.user['role'] == 'dosen') ...[
+                _buildDrawerItem(Icons.person, 'Generate QR', AppSection.dosen),
+                _buildDrawerItem(Icons.fact_check, 'Validasi Izin', AppSection.izin),
+                _buildDrawerItem(Icons.people, 'Validasi Mahasiswa', AppSection.enrollments),
+              ],
               const Divider(),
               _buildDrawerItem(Icons.account_circle, 'Profil', AppSection.profile),
               const Spacer(),
@@ -230,18 +263,21 @@ class _HomePageState extends State<HomePage> {
         return 'Absensi Dosen';
       case AppSection.profile:
         return 'Profil Pengguna';
+      case AppSection.izin:
+        return 'Manajemen Izin';
+      case AppSection.enrollments:
+        return 'Perkuliahan';
     }
   }
 
   Widget _buildSection() {
     switch (_selectedSection) {
       case AppSection.dashboard:
-        return DashboardView(
-          mahasiswaCount: _mahasiswaAbsensi.length,
-          dosenCount: _dosenAbsensi.length,
-          latestMahasiswa: _mahasiswaAbsensi,
-          latestDosen: _dosenAbsensi,
-        );
+        if (widget.user['role'] == 'dosen') {
+          return const DosenDashboardView();
+        } else {
+          return const MahasiswaDashboardView();
+        }
       case AppSection.mahasiswa:
         return MahasiswaAbsensiView(
           records: _mahasiswaAbsensi,
@@ -262,6 +298,14 @@ class _HomePageState extends State<HomePage> {
         );
       case AppSection.profile:
         return ProfileView(onLogout: _logout);
+      case AppSection.izin:
+        if (widget.user['role'] == 'dosen') {
+          return const DosenIzinView();
+        } else {
+          return const MahasiswaIzinView();
+        }
+      case AppSection.enrollments:
+        return const Center(child: Text('Halaman Fitur Kelas / Enrollments Belum Diimplementasi'));
     }
   }
 }
@@ -404,28 +448,33 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
                 height: double.infinity,
               ),
               mobile_scanner.MobileScanner(
-                onDetect: (capture) {
+                onDetect: (capture) async {
                   final barcodes = capture.barcodes;
                   if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                    try {
-                      final data = jsonDecode(barcodes.first.rawValue!);
-                      if (data is Map && data.containsKey('matkul')) {
-                        setState(() {
-                          _matkulController.text = data['matkul'] ?? '';
-                        });
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('QR berhasil di-scan! Mata kuliah terisi otomatis.')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('QR code tidak mengandung data mata kuliah.')),
-                        );
-                      }
-                    } catch (e) {
+                    final String token = barcodes.first.rawValue!;
+                    
+                    // Stop scanning while processing
+                    Navigator.of(context).pop();
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Memproses QR Code...')),
+                    );
+                    
+                    final apiService = ApiService();
+                    final result = await apiService.scanQr(token);
+                    
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('QR code tidak valid atau rusak.')),
+                        SnackBar(
+                          content: Text(result['message'] ?? (result['success'] ? 'Sukses' : 'Gagal')),
+                          backgroundColor: result['success'] ? Colors.green : Colors.red,
+                        ),
                       );
+                      
+                      if (result['success']) {
+                        // Let parent view know to refresh dashboard
+                        // This requires some callback or state update
+                      }
                     }
                   }
                 },
