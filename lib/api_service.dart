@@ -168,4 +168,73 @@ class ApiService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  Future<Map<String, dynamic>> getMahasiswaEnrollments() async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/mahasiswa/enrollments'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(response.body)};
+      }
+      return {'success': false, 'message': 'Gagal mengambil data'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> requestEnrollment(int matkulId) async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/mahasiswa/enrollments/$matkulId'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true, 'message': 'Berhasil mengajukan'};
+      }
+      return {'success': false, 'message': 'Gagal mengajukan'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getDosenEnrollmentRequests() async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/dosen/enrollments'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(response.body)};
+      }
+      return {'success': false, 'message': 'Gagal mengambil data'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> setEnrollmentStatus(int enrollmentId, bool approve) async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final action = approve ? 'approve' : 'reject';
+      final response = await http.patch(
+        Uri.parse('$baseUrl/dosen/enrollments/$enrollmentId/$action'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Berhasil'};
+      }
+      return {'success': false, 'message': 'Gagal memperbarui status'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

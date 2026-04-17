@@ -9,6 +9,8 @@ import 'screens/mahasiswa_dashboard.dart';
 import 'screens/dosen_dashboard.dart';
 import 'screens/mahasiswa_izin_screen.dart';
 import 'screens/dosen_izin_screen.dart';
+import 'screens/mahasiswa_enrollment_screen.dart';
+import 'screens/dosen_enrollment_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -458,7 +460,11 @@ class _HomePageState extends State<HomePage> {
           return const MahasiswaIzinView();
         }
       case AppSection.enrollments:
-        return const Center(child: Text('Halaman Fitur Kelas / Enrollments Belum Diimplementasi'));
+        if (widget.user['role'] == 'dosen') {
+          return const DosenEnrollmentView();
+        } else {
+          return const MahasiswaEnrollmentView();
+        }
     }
   }
 }
