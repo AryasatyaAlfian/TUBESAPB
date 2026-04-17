@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart' as mobile_scanner;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:convert';
+import 'package:google_fonts/google_fonts.dart';
+import 'api_service.dart';
+import 'screens/mahasiswa_dashboard.dart';
+import 'screens/dosen_dashboard.dart';
+import 'screens/mahasiswa_izin_screen.dart';
+import 'screens/dosen_izin_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,8 +24,40 @@ class MyApp extends StatelessWidget {
       title: 'Absensi Kampus',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red).copyWith(
-          secondary: Colors.white,
+        brightness: Brightness.dark,
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF6C5CE7), // Bright Purple
+          surface: Color(0xFF222436), // Card Background
+          background: Color(0xFF14142B), // Main Background
+          onSurface: Colors.white,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF14142B),
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme).apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF1A1C29),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          prefixIconColor: Colors.grey,
+          suffixIconColor: Colors.grey,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF6C5CE7),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
       ),
       home: const AuthPage(),
@@ -34,7 +75,10 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  String _userType = 'mahasiswa';
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  final ApiService _apiService = ApiService();
 
   void _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -48,23 +92,27 @@ class _AuthPageState extends State<AuthPage> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
+    final result = await _apiService.login(
+      _emailController.text,
+      _passwordController.text,
+      _userType,
+    );
 
-    if (_emailController.text == 'admin@kampus.com' &&
-        _passwordController.text == '123456') {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email atau kata sandi salah.')),
-      );
-    }
+    if (!mounted) return;
 
     setState(() {
       _isLoading = false;
     });
+
+    if (result['success']) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomePage(user: result['user'])),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Login gagal.')),
+      );
+    }
   }
 
   @override
@@ -73,56 +121,185 @@ class _AuthPageState extends State<AuthPage> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.school, size: 88, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Sistem Absensi Kampus',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              const Text(
-                'Masuk untuk memulai pengelolaan absensi mahasiswa dan dosen.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.architecture, size: 40, color: Colors.white),
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Kata Sandi',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 24),
+                const Text(
+                  'Aplikasi Presensi',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.login),
-                  label: const Text('Masuk'),
-                  onPressed: _isLoading ? null : _login,
+                const SizedBox(height: 8),
+                const Text(
+                  'Enter your academic credentials to continue.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text('Gunakan admin@kampus.com / 123456 untuk demo.'),
-            ],
+                const SizedBox(height: 32),
+                
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14142B),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _userType = 'mahasiswa'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _userType == 'mahasiswa' ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'MAHASISWA',
+                              style: TextStyle(
+                                color: _userType == 'mahasiswa' ? Colors.white : Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _userType = 'dosen'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _userType == 'dosen' ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'DOSEN',
+                              style: TextStyle(
+                                color: _userType == 'dosen' ? Colors.white : Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'UNIVERSITY EMAIL',
+                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    hintText: 'student@university.ac.id',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 24),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text(
+                      'PASSWORD',
+                      style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    ),
+                    Text(
+                      'FORGOT ACCESS?',
+                      style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    hintText: '••••••••••••',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      onPressed: () {
+                         setState(() {
+                           _obscurePassword = !_obscurePassword;
+                         });
+                      },
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 32),
+                
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _login,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Text('Login'),
+                              SizedBox(width: 8),
+                              Icon(Icons.arrow_forward, size: 18),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        const Text('NETWORK STABLE', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const Text('V2.4.0-ARCHITECT', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -130,10 +307,11 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
-enum AppSection { dashboard, mahasiswa, dosen, profile }
+enum AppSection { dashboard, mahasiswa, dosen, profile, izin, enrollments }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Map<String, dynamic> user;
+  const HomePage({super.key, required this.user});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -154,9 +332,10 @@ class _HomePageState extends State<HomePage> {
   Widget _buildDrawerItem(IconData icon, String title, AppSection section) {
     final bool selected = _selectedSection == section;
     return ListTile(
-      leading: Icon(icon, color: selected ? Colors.red : null),
+      leading: Icon(icon, color: selected ? Theme.of(context).colorScheme.primary : null),
       title: Text(title),
       selected: selected,
+      selectedColor: Theme.of(context).colorScheme.primary,
       onTap: () {
         setState(() {
           _selectedSection = section;
@@ -181,25 +360,33 @@ class _HomePageState extends State<HomePage> {
             children: [
               DrawerHeader(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  color: Theme.of(context).colorScheme.surface,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    CircleAvatar(
+                  children: [
+                    const CircleAvatar(
                       radius: 28,
                       child: Icon(Icons.people, size: 32),
                     ),
-                    SizedBox(height: 12),
-                    Text('Admin Kampus', style: TextStyle(fontSize: 18)),
-                    SizedBox(height: 4),
-                    Text('admin@kampus.com', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 12),
+                    Text(widget.user['name'] ?? 'Guest', style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(widget.user['email'] ?? '', style: const TextStyle(fontSize: 14)),
                   ],
                 ),
               ),
               _buildDrawerItem(Icons.dashboard, 'Dashboard', AppSection.dashboard),
-              _buildDrawerItem(Icons.school, 'Absensi Mahasiswa', AppSection.mahasiswa),
-              _buildDrawerItem(Icons.person, 'Absensi Dosen', AppSection.dosen),
+              if (widget.user['role'] == 'mahasiswa') ...[
+                _buildDrawerItem(Icons.school, 'Scan QR Absensi', AppSection.mahasiswa),
+                _buildDrawerItem(Icons.edit_document, 'Pengajuan Izin', AppSection.izin),
+                _buildDrawerItem(Icons.library_books, 'Ambil Matkul', AppSection.enrollments),
+              ],
+              if (widget.user['role'] == 'dosen') ...[
+                _buildDrawerItem(Icons.person, 'Generate QR', AppSection.dosen),
+                _buildDrawerItem(Icons.fact_check, 'Validasi Izin', AppSection.izin),
+                _buildDrawerItem(Icons.people, 'Validasi Mahasiswa', AppSection.enrollments),
+              ],
               const Divider(),
               _buildDrawerItem(Icons.account_circle, 'Profil', AppSection.profile),
               const Spacer(),
@@ -229,18 +416,21 @@ class _HomePageState extends State<HomePage> {
         return 'Absensi Dosen';
       case AppSection.profile:
         return 'Profil Pengguna';
+      case AppSection.izin:
+        return 'Manajemen Izin';
+      case AppSection.enrollments:
+        return 'Perkuliahan';
     }
   }
 
   Widget _buildSection() {
     switch (_selectedSection) {
       case AppSection.dashboard:
-        return DashboardView(
-          mahasiswaCount: _mahasiswaAbsensi.length,
-          dosenCount: _dosenAbsensi.length,
-          latestMahasiswa: _mahasiswaAbsensi,
-          latestDosen: _dosenAbsensi,
-        );
+        if (widget.user['role'] == 'dosen') {
+          return const DosenDashboardView();
+        } else {
+          return const MahasiswaDashboardView();
+        }
       case AppSection.mahasiswa:
         return MahasiswaAbsensiView(
           records: _mahasiswaAbsensi,
@@ -261,6 +451,14 @@ class _HomePageState extends State<HomePage> {
         );
       case AppSection.profile:
         return ProfileView(onLogout: _logout);
+      case AppSection.izin:
+        if (widget.user['role'] == 'dosen') {
+          return const DosenIzinView();
+        } else {
+          return const MahasiswaIzinView();
+        }
+      case AppSection.enrollments:
+        return const Center(child: Text('Halaman Fitur Kelas / Enrollments Belum Diimplementasi'));
     }
   }
 }
@@ -314,7 +512,7 @@ class DashboardView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -379,6 +577,142 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
   final TextEditingController _nimController = TextEditingController();
   final TextEditingController _matkulController = TextEditingController();
   String _keterangan = 'Hadir';
+
+  void _scanQR() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Scan QR Code'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.flash_on),
+                onPressed: () {
+                  // Toggle flash if needed, but for simplicity, skip
+                },
+              ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Container(
+                color: Colors.black,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+              mobile_scanner.MobileScanner(
+                onDetect: (capture) async {
+                  final barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                    final String token = barcodes.first.rawValue!;
+                    
+                    // Stop scanning while processing
+                    Navigator.of(context).pop();
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Memproses QR Code...')),
+                    );
+                    
+                    final apiService = ApiService();
+                    final result = await apiService.scanQr(token);
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(result['message'] ?? (result['success'] ? 'Sukses' : 'Gagal')),
+                          backgroundColor: result['success'] ? Colors.green : Colors.red,
+                        ),
+                      );
+                      
+                      if (result['success']) {
+                        // Let parent view know to refresh dashboard
+                        // This requires some callback or state update
+                      }
+                    }
+                  }
+                },
+              ),
+              // Overlay untuk area scan
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Arahkan QR Code ke dalam kotak ini',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+              // Petak-petak di sudut
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                left: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      left: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: MediaQuery.of(context).size.height / 2 - 125 - 20,
+                right: MediaQuery.of(context).size.width / 2 - 125 - 20,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.red, width: 4),
+                      right: BorderSide(color: Colors.red, width: 4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _submit() {
     if (_namaController.text.isEmpty || _nimController.text.isEmpty || _matkulController.text.isEmpty) {
@@ -452,6 +786,12 @@ class _MahasiswaAbsensiViewState extends State<MahasiswaAbsensiView> {
           },
         ),
         const SizedBox(height: 16),
+        FilledButton.icon(
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR untuk Mata Kuliah'),
+          onPressed: _scanQR,
+        ),
+        const SizedBox(height: 12),
         FilledButton.icon(
           icon: const Icon(Icons.check),
           label: const Text('Simpan Absensi'),
@@ -583,6 +923,45 @@ class _DosenAbsensiViewState extends State<DosenAbsensiView> {
           icon: const Icon(Icons.check),
           label: const Text('Simpan Absensi'),
           onPressed: _submit,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          icon: const Icon(Icons.qr_code),
+          label: const Text('Generate QR untuk Mahasiswa'),
+          onPressed: () {
+            if (_matkulController.text.isEmpty || _kelasController.text.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Mohon isi mata kuliah dan kelas terlebih dahulu.')),
+              );
+              return;
+            }
+            final qrData = jsonEncode({
+              'matkul': _matkulController.text,
+              'kelas': _kelasController.text,
+              'waktu': DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+            });
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('QR Code Absensi'),
+                content: SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 200.0,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Tutup'),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 24),
         const Text('Daftar Absensi Dosen', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
