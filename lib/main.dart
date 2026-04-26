@@ -11,6 +11,7 @@ import 'screens/mahasiswa_izin_screen.dart';
 import 'screens/dosen_izin_screen.dart';
 import 'screens/mahasiswa_enrollment_screen.dart';
 import 'screens/dosen_enrollment_screen.dart';
+import 'screens/forgot_password_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -263,14 +264,22 @@ class _AuthPageState extends State<AuthPage> {
                 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
+                  children: [
+                    const Text(
                       'PASSWORD',
                       style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
-                    Text(
-                      'FORGOT ACCESS?',
-                      style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                        );
+                      },
+                      child: const Text(
+                        'FORGOT ACCESS?',
+                        style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                      ),
                     ),
                   ],
                 ),

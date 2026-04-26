@@ -237,4 +237,36 @@ class ApiService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  Future<Map<String, dynamic>> sendOtpReset(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/forgot-password'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+      final data = jsonDecode(response.body);
+      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Gagal', 'data': data};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> resetPassword(String email, String otp, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reset-password'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'new_password': newPassword,
+        }),
+      );
+      final data = jsonDecode(response.body);
+      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Gagal'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }
