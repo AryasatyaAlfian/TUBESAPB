@@ -269,4 +269,35 @@ class ApiService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  /// Generate QR token from backend. [durationMinutes] must be one of 5, 10, 15, or 30.
+  Future<Map<String, dynamic>> generateQrCode(int matkulId, int durationMinutes) async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/dosen/qr-code?matkul_id=$matkulId&duration=$durationMinutes'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'token': data['token'],
+          'expiresAt': data['expiresAt'],
+          'expiresAtTimestamp': data['expiresAtTimestamp'],
+          'matkulId': data['matkulId'],
+          'duration': data['duration'],
+          'matkuls': data['matkuls'],
+        };
+      }
+      return {'success': false, 'message': data['message'] ?? 'Gagal generate QR'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }
+

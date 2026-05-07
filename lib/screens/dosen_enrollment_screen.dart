@@ -1,130 +1,155 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
+import '../theme/app_theme.dart';
 
 class DosenEnrollmentView extends StatefulWidget {
   const DosenEnrollmentView({super.key});
-
   @override
   State<DosenEnrollmentView> createState() => _DosenEnrollmentViewState();
 }
 
 class _DosenEnrollmentViewState extends State<DosenEnrollmentView> {
-  final ApiService _apiService = ApiService();
-  bool _isLoading = true;
+  final _api = ApiService();
+  bool _loading = true;
   String _error = '';
   List<dynamic> _requests = [];
 
   @override
-  void initState() {
-    super.initState();
-    _loadRequests();
-  }
+  void initState() { super.initState(); _load(); }
 
-  Future<void> _loadRequests() async {
-    setState(() {
-      _isLoading = true;
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final res = await _api.getDosenEnrollmentRequests();
+    if (mounted) setState(() {
+      _loading = false;
+      if (res['success'] == true) _requests = res['data']['enrollmentRequests'] ?? [];
+      else _error = res['message'] ?? 'Gagal';
     });
-    final result = await _apiService.getDosenEnrollmentRequests();
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        if (result['success']) {
-          _requests = result['data']['enrollmentRequests'] ?? [];
-        } else {
-          _error = result['message'] ?? 'Unknown error';
-        }
-      });
-    }
   }
 
-  Future<void> _updateStatus(int id, bool approve) async {
-    showDialog(
+  Future<void> _update(int id, bool approve) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => AlertDialog(
+        title: Text(approve ? 'Terima Mahasiswa?' : 'Tolak Mahasiswa?'),
+        content: Text(approve ? 'Mahasiswa akan diterima di mata kuliah ini.' : 'Pengajuan mahasiswa akan ditolak.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: approve ? AppColors.success : AppColors.error),
+            child: Text(approve ? 'Terima' : 'Tolak'),
+          ),
+        ],
+      ),
     );
-    final result = await _apiService.setEnrollmentStatus(id, approve);
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? (result['success'] ? 'Sukses' : 'Gagal')),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
-        ),
-      );
-      if (result['success']) {
-        _loadRequests();
-      }
-    }
+    if (confirmed != true) return;
+
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    final res = await _api.setEnrollmentStatus(id, approve);
+    if (!mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(res['message'] ?? (res['success'] == true ? 'Berhasil' : 'Gagal')),
+      backgroundColor: res['success'] == true ? AppColors.success : AppColors.error,
+    ));
+    if (res['success'] == true) _load();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error.isNotEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+      const SizedBox(height: 16),
+      Text(_error, style: const TextStyle(color: AppColors.error)),
+      const SizedBox(height: 16),
+      FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text('Coba Lagi')),
+    ]));
 
-    if (_error.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-            ElevatedButton(onPressed: _loadRequests, child: const Text('Coba Lagi')),
-          ],
-        ),
-      );
-    }
+    if (_requests.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Container(padding: const EdgeInsets.all(24), decoration: const BoxDecoration(color: AppColors.successLight, shape: BoxShape.circle),
+        child: const Icon(Icons.how_to_reg_rounded, size: 48, color: AppColors.success)),
+      const SizedBox(height: 16),
+      const Text('Tidak Ada Permintaan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      const Text('Semua permintaan validasi mahasiswa sudah diproses.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.neutral)),
+    ]));
 
-    if (_requests.isEmpty) {
-      return const Center(child: Text('Tidak ada permintaan validasi mahasiswa.'));
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(20),
+        itemCount: _requests.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, i) {
+          final req = _requests[i];
+          final user = req['mahasiswa']?['user'] ?? {};
+          final name = user['name'] ?? 'Mahasiswa';
+          final nim = req['mahasiswa']?['nim'] ?? '-';
+          final matkul = req['matkul']?['nama'] ?? 'Mata Kuliah';
+          final initial = name.isNotEmpty ? name[0].toUpperCase() : 'M';
 
-    return ListView.builder(
-      itemCount: _requests.length,
-      padding: const EdgeInsets.all(8),
-      itemBuilder: (context, index) {
-        final req = _requests[index];
-        final mahasiswaUser = req['mahasiswa']?['user'] ?? {};
-        final mahasiswaName = mahasiswaUser['name'] ?? 'Mahasiswa';
-        final matkulName = req['matkul']?['nama'] ?? 'Mata Kuliah';
-        final nim = req['mahasiswa']?['nim'] ?? '-';
-
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(mahasiswaName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text('NIM: $nim'),
-                Text('Mengajukan: $matkulName'),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _updateStatus(req['id'], false),
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      label: const Text('Tolak', style: TextStyle(color: Colors.red)),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: () => _updateStatus(req['id'], true),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Terima'),
-                      style: FilledButton.styleFrom(backgroundColor: Colors.green),
-                    ),
-                  ],
-                ),
-              ],
+          return Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? AppColors.dividerDark : AppColors.dividerLight),
             ),
-          ),
-        );
-      },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.secondary.withOpacity(0.15),
+                    child: Text(initial, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text('NIM: $nim', style: const TextStyle(fontSize: 12, color: AppColors.neutral)),
+                  ])),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: AppColors.warningLight, borderRadius: BorderRadius.circular(8)),
+                    child: const Text('Pending', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.warning))),
+                ]),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceVariantDark : AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.library_books_rounded, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(matkul, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () => _update(req['id'], false),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Tolak'),
+                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 12)),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: FilledButton.icon(
+                    onPressed: () => _update(req['id'], true),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Terima'),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.success, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  )),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 }
