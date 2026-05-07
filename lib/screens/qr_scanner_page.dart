@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
 class QRScannerPage extends StatefulWidget {
   @override
@@ -7,35 +6,34 @@ class QRScannerPage extends StatefulWidget {
 }
 
 class _QRScannerPageState extends State<QRScannerPage> {
-  bool isScanned = false; // Mencegah scan berulang kali
+  bool isScanned = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Presensi QR Code')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final List<Barcode> barcodes = capture.barcodes;
-          for (final barcode in barcodes) {
-            if (!isScanned && barcode.rawValue != null) {
-              setState(() {
-                isScanned = true;
-              });
-
-              final String qrData = barcode.rawValue!;
-
-              // Tampilkan hasil scan sementara
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('NIM/Data terdeteksi: $qrData')),
-              );
-
-              // TODO: Kirim qrData ini ke API Backend
-
-              // Opsional: Kembali ke halaman sebelumnya setelah berhasil
-              // Navigator.pop(context, qrData);
-            }
-          }
-        },
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.qr_code_2_rounded, size: 100, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('QR Scanner (Placeholder)'),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'QR Scanner will be enabled after fixing dependencies',
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Scan QR'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart' as ms;
+// import 'package:mobile_scanner/mobile_scanner.dart' as ms;
 import 'package:provider/provider.dart';
 import '../api_service.dart';
 import '../providers/theme_provider.dart';
@@ -43,14 +43,20 @@ class _HomePageState extends State<HomePage> {
 
   List<String> get _titles => _isMahasiswa
       ? ['Dashboard', 'Scan QR', 'Pengajuan Izin', 'Ambil Matkul', 'Profil']
-      : ['Dashboard', 'Generate QR', 'Validasi Izin', 'Validasi Mahasiswa', 'Profil'];
+      : [
+          'Dashboard',
+          'Generate QR',
+          'Validasi Izin',
+          'Validasi Mahasiswa',
+          'Profil',
+        ];
 
   void _logout() async {
     await ApiService().logout();
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
   }
 
@@ -91,14 +97,36 @@ class _HomePageState extends State<HomePage> {
         ? ['Dashboard', 'Scan', 'Izin', 'Matkul', 'Profil']
         : ['Dashboard', 'QR', 'Izin', 'Validasi', 'Profil'];
     final icons = _isMahasiswa
-        ? [Icons.home_rounded, Icons.qr_code_scanner_rounded, Icons.edit_document, Icons.library_books_rounded, Icons.person_rounded]
-        : [Icons.home_rounded, Icons.qr_code_2_rounded, Icons.fact_check_rounded, Icons.people_rounded, Icons.person_rounded];
+        ? [
+            Icons.home_rounded,
+            Icons.qr_code_scanner_rounded,
+            Icons.edit_document,
+            Icons.library_books_rounded,
+            Icons.person_rounded,
+          ]
+        : [
+            Icons.home_rounded,
+            Icons.qr_code_2_rounded,
+            Icons.fact_check_rounded,
+            Icons.people_rounded,
+            Icons.person_rounded,
+          ];
 
     return Container(
       decoration: BoxDecoration(
         color: navBg,
-        border: Border(top: BorderSide(color: isDark ? AppColors.dividerDark : AppColors.dividerLight)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, -4))],
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
@@ -126,7 +154,11 @@ class _HomePageState extends State<HomePage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: (isSelected ? AppColors.primary : AppColors.secondary).withOpacity(0.4),
+                          color:
+                              (isSelected
+                                      ? AppColors.primary
+                                      : AppColors.secondary)
+                                  .withOpacity(0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -141,22 +173,37 @@ class _HomePageState extends State<HomePage> {
                 onTap: () => setState(() => _currentIndex = i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+                    color: isSelected
+                        ? AppColors.primary.withOpacity(0.1)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(icons[i], size: 22, color: isSelected ? AppColors.primary : AppColors.neutral),
+                      Icon(
+                        icons[i],
+                        size: 22,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.neutral,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         items[i],
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                          color: isSelected ? AppColors.primary : AppColors.neutral,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.neutral,
                         ),
                       ),
                     ],
@@ -187,18 +234,28 @@ class _ScanQrViewState extends State<_ScanQrView> {
 
   Future<void> _handleScan(String token) async {
     if (_scanned) return;
-    setState(() { _scanned = true; _processing = true; });
+    setState(() {
+      _scanned = true;
+      _processing = true;
+    });
     final res = await _api.scanQr(token);
     if (mounted) {
       setState(() {
         _processing = false;
         _success = res['success'] == true;
-        _message = res['message'] ?? (_success! ? 'Presensi berhasil!' : 'Gagal presensi.');
+        _message =
+            res['message'] ??
+            (_success! ? 'Presensi berhasil!' : 'Gagal presensi.');
       });
     }
   }
 
-  void _reset() => setState(() { _scanned = false; _processing = false; _success = null; _message = ''; });
+  void _reset() => setState(() {
+    _scanned = false;
+    _processing = false;
+    _success = null;
+    _message = '';
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,11 +264,16 @@ class _ScanQrViewState extends State<_ScanQrView> {
     }
     return Stack(
       children: [
-        ms.MobileScanner(
-          onDetect: (capture) {
-            final raw = capture.barcodes.firstOrNull?.rawValue;
-            if (raw != null) _handleScan(raw);
-          },
+        // MobileScanner placeholder - will be enabled after fixing dependencies
+        Container(
+          color: Colors.black,
+          child: const Center(
+            child: Text(
+              'QR Scanner\n(Placeholder)',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
         ),
         // Overlay
         Container(color: Colors.black38),
@@ -220,19 +282,42 @@ class _ScanQrViewState extends State<_ScanQrView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 240, height: 240,
+                width: 240,
+                height: 240,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.white, width: 2),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: _processing
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                    : const Center(child: Text('Arahkan kamera ke QR Code', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600))),
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : const Center(
+                        child: Text(
+                          'Arahkan kamera ke QR Code',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(height: 24),
-              Text('Scan QR Presensi', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+              Text(
+                'Scan QR Presensi',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Posisikan QR Code dalam kotak di atas', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
+              Text(
+                'Posisikan QR Code dalam kotak di atas',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              ),
             ],
           ),
         ),
@@ -249,7 +334,8 @@ class _ScanQrViewState extends State<_ScanQrView> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 100, height: 100,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
                 color: ok ? AppColors.successLight : AppColors.errorLight,
                 shape: BoxShape.circle,
@@ -261,9 +347,21 @@ class _ScanQrViewState extends State<_ScanQrView> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(ok ? 'Presensi Berhasil!' : 'Presensi Gagal', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: ok ? AppColors.success : AppColors.error)),
+            Text(
+              ok ? 'Presensi Berhasil!' : 'Presensi Gagal',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: ok ? AppColors.success : AppColors.error,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text(_message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.neutral)),
+            Text(
+              _message,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppColors.neutral),
+            ),
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: _reset,
@@ -271,7 +369,10 @@ class _ScanQrViewState extends State<_ScanQrView> {
               label: const Text('Scan Lagi'),
               style: FilledButton.styleFrom(
                 backgroundColor: ok ? AppColors.success : AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
+                ),
               ),
             ),
           ],

@@ -1,20 +1,30 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000/api'; // Assuming emulator, change to real IP if running on device
+  static const String baseUrl =
+      'http://10.0.2.2:8000/api'; // Assuming emulator, change to real IP if running on device
+  static String? _cachedToken;
+  static Map<String, dynamic>? _cachedUserData;
 
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    // TODO: Replace with shared_preferences after fixing dependencies
+    return _cachedToken;
   }
 
-  Future<Map<String, dynamic>> login(String email, String password, String userType) async {
+  Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+    String userType,
+  ) async {
     final url = Uri.parse('$baseUrl/login');
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
       body: jsonEncode({
         'email': email,
         'password': password,
@@ -24,12 +34,50 @@ class ApiService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data.containsKey('access_token')) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', data['access_token']);
-      await prefs.setString('user_data', jsonEncode(data['user']));
+      // TODO: Replace with shared_preferences after fixing dependencies
+      _cachedToken = data['access_token'];
+      _cachedUserData = data['user'];
       return {'success': true, 'user': data['user']};
     } else {
       return {'success': false, 'message': data['message'] ?? 'Login failed'};
+    }
+  }
+
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String? nim,
+    String password,
+    String userType,
+  ) async {
+    final url = Uri.parse('$baseUrl/register');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'nim': nim,
+        'password': password,
+        'password_confirmation': password,
+        'user_type': userType,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return {
+        'success': true,
+        'message': data['message'] ?? 'Registrasi berhasil',
+      };
+    } else {
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Registrasi gagal',
+      };
     }
   }
 
@@ -44,9 +92,9 @@ class ApiService {
         },
       );
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('user_data');
+    // TODO: Replace with shared_preferences after fixing dependencies
+    _cachedToken = null;
+    _cachedUserData = null;
   }
 
   Future<Map<String, dynamic>> getMahasiswaDashboard() async {
@@ -105,7 +153,7 @@ class ApiService {
         },
         body: jsonEncode({'token': qrToken}),
       );
-      
+
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'message': data['message'] ?? 'Berhasil'};
@@ -122,7 +170,10 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/mahasiswa/izin'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(response.body)};
@@ -139,7 +190,10 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/dosen/izin'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(response.body)};
@@ -157,7 +211,10 @@ class ApiService {
       final action = approve ? 'approve' : 'reject';
       final response = await http.post(
         Uri.parse('$baseUrl/dosen/izin/$izinId/$action'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -175,7 +232,10 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/mahasiswa/enrollments'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(response.body)};
@@ -192,7 +252,10 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/mahasiswa/enrollments/$matkulId'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'message': 'Berhasil mengajukan'};
@@ -209,7 +272,10 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/dosen/enrollments'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(response.body)};
@@ -220,14 +286,20 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> setEnrollmentStatus(int enrollmentId, bool approve) async {
+  Future<Map<String, dynamic>> setEnrollmentStatus(
+    int enrollmentId,
+    bool approve,
+  ) async {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'Belum login'};
     try {
       final action = approve ? 'approve' : 'reject';
       final response = await http.patch(
         Uri.parse('$baseUrl/dosen/enrollments/$enrollmentId/$action'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
       if (response.statusCode == 200) {
         return {'success': true, 'message': 'Berhasil'};
@@ -242,21 +314,35 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/forgot-password'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'email': email}),
       );
       final data = jsonDecode(response.body);
-      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Gagal', 'data': data};
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Gagal',
+        'data': data,
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> resetPassword(String email, String otp, String newPassword) async {
+  Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/reset-password'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({
           'email': email,
           'otp': otp,
@@ -264,19 +350,27 @@ class ApiService {
         }),
       );
       final data = jsonDecode(response.body);
-      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Gagal'};
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Gagal',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
   /// Generate QR token from backend. [durationMinutes] must be one of 5, 10, 15, or 30.
-  Future<Map<String, dynamic>> generateQrCode(int matkulId, int durationMinutes) async {
+  Future<Map<String, dynamic>> generateQrCode(
+    int matkulId,
+    int durationMinutes,
+  ) async {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'Belum login'};
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/dosen/qr-code?matkul_id=$matkulId&duration=$durationMinutes'),
+        Uri.parse(
+          '$baseUrl/dosen/qr-code?matkul_id=$matkulId&duration=$durationMinutes',
+        ),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -294,10 +388,12 @@ class ApiService {
           'matkuls': data['matkuls'],
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Gagal generate QR'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal generate QR',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 }
-

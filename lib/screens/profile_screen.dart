@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -21,10 +21,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('user_data');
-    if (raw != null && mounted) {
-      setState(() => _userData = jsonDecode(raw));
+    // TODO: Replace with shared_preferences after fixing dependencies
+    if (mounted) {
+      setState(() => _userData = widget.user);
     }
   }
 
@@ -57,21 +56,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CircleAvatar(
                 radius: 36,
                 backgroundColor: Colors.white24,
-                child: Text(_initial(name), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white)),
+                child: Text(
+                  _initial(name),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(email, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                    Text(
+                      email,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
-                      child: Text(roleLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        roleLabel,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -96,7 +128,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 10),
         _infoCard(context, isDark, [
           _infoRow(context, Icons.info_outline_rounded, 'Versi', '2.0.0'),
-          _infoRow(context, Icons.school_rounded, 'Platform', 'Sistem Presensi Kampus'),
+          _infoRow(
+            context,
+            Icons.school_rounded,
+            'Platform',
+            'Sistem Presensi Kampus',
+          ),
         ]),
         const SizedBox(height: 32),
 
@@ -110,17 +147,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: const Text('Konfirmasi Logout'),
                 content: const Text('Apakah Anda yakin ingin keluar?'),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal'),
+                  ),
                   FilledButton(
-                    onPressed: () { Navigator.pop(context); widget.onLogout(); },
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onLogout();
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                    ),
                     child: const Text('Logout'),
                   ),
                 ],
               ),
             ),
             icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-            label: const Text('Logout', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+            label: const Text(
+              'Logout',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppColors.error),
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -131,20 +182,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _sectionLabel(String text) => Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: AppColors.neutral));
+  Widget _sectionLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.2,
+      color: AppColors.neutral,
+    ),
+  );
 
   Widget _infoCard(BuildContext context, bool isDark, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppColors.dividerDark : AppColors.dividerLight),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+        ),
       ),
       child: Column(children: children),
     );
   }
 
-  Widget _infoRow(BuildContext context, IconData icon, String label, String value) {
+  Widget _infoRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -163,9 +229,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: AppColors.neutral, fontWeight: FontWeight.w500)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.neutral,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? AppColors.onSurfaceDark : AppColors.onSurfaceLight)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.onSurfaceDark
+                        : AppColors.onSurfaceLight,
+                  ),
+                ),
               ],
             ),
           ),

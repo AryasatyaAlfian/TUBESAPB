@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // ─────────────────────────────────────────────
 // APP COLORS — Based on Google Stitch Palette
@@ -57,42 +56,71 @@ class AppColors {
 // ─────────────────────────────────────────────
 class AppTheme {
   static TextTheme _buildTextTheme(Color bodyColor) {
-    return GoogleFonts.interTextTheme().copyWith(
-      displayLarge: GoogleFonts.inter(
-        fontSize: 32, fontWeight: FontWeight.w800, color: bodyColor, letterSpacing: -1.5,
+    return TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.w800,
+        color: bodyColor,
+        letterSpacing: -1.5,
       ),
-      displayMedium: GoogleFonts.inter(
-        fontSize: 28, fontWeight: FontWeight.w700, color: bodyColor, letterSpacing: -0.5,
+      displayMedium: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        color: bodyColor,
+        letterSpacing: -0.5,
       ),
-      headlineLarge: GoogleFonts.inter(
-        fontSize: 24, fontWeight: FontWeight.w700, color: bodyColor,
+      headlineLarge: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        color: bodyColor,
       ),
-      headlineMedium: GoogleFonts.inter(
-        fontSize: 20, fontWeight: FontWeight.w600, color: bodyColor,
+      headlineMedium: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: bodyColor,
       ),
-      headlineSmall: GoogleFonts.inter(
-        fontSize: 18, fontWeight: FontWeight.w600, color: bodyColor,
+      headlineSmall: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: bodyColor,
       ),
-      titleLarge: GoogleFonts.inter(
-        fontSize: 16, fontWeight: FontWeight.w600, color: bodyColor,
+      titleLarge: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: bodyColor,
       ),
-      titleMedium: GoogleFonts.inter(
-        fontSize: 14, fontWeight: FontWeight.w500, color: bodyColor, letterSpacing: 0.1,
+      titleMedium: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: bodyColor,
+        letterSpacing: 0.1,
       ),
-      bodyLarge: GoogleFonts.inter(
-        fontSize: 16, fontWeight: FontWeight.w400, color: bodyColor,
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: bodyColor,
       ),
-      bodyMedium: GoogleFonts.inter(
-        fontSize: 14, fontWeight: FontWeight.w400, color: bodyColor,
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: bodyColor,
       ),
-      bodySmall: GoogleFonts.inter(
-        fontSize: 12, fontWeight: FontWeight.w400, color: bodyColor,
+      bodySmall: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: bodyColor,
       ),
-      labelLarge: GoogleFonts.inter(
-        fontSize: 14, fontWeight: FontWeight.w500, color: bodyColor, letterSpacing: 0.1,
+      labelLarge: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: bodyColor,
+        letterSpacing: 0.1,
       ),
-      labelSmall: GoogleFonts.inter(
-        fontSize: 11, fontWeight: FontWeight.w500, color: bodyColor, letterSpacing: 0.5,
+      labelSmall: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: bodyColor,
+        letterSpacing: 0.5,
       ),
     );
   }
@@ -144,7 +172,7 @@ class AppTheme {
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurfaceLight,
@@ -161,7 +189,10 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 8,
         showUnselectedLabels: true,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        selectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
         unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
 
@@ -201,9 +232,12 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.inter(color: AppColors.neutral, fontSize: 14),
-        labelStyle: GoogleFonts.inter(color: AppColors.neutral, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        hintStyle: TextStyle(color: AppColors.neutral, fontSize: 14),
+        labelStyle: TextStyle(color: AppColors.neutral, fontSize: 14),
         prefixIconColor: AppColors.neutral,
         suffixIconColor: AppColors.neutral,
       ),
@@ -214,9 +248,14 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.onPrimary,
           disabledBackgroundColor: AppColors.dividerLight,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
           elevation: 0,
         ),
       ),
@@ -226,9 +265,14 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -236,7 +280,10 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -244,7 +291,10 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariantLight,
         selectedColor: AppColors.primary.withOpacity(0.12),
-        labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
         side: const BorderSide(color: AppColors.dividerLight),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -256,8 +306,14 @@ class AppTheme {
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.neutral,
-        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400),
+        labelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+        ),
         dividerColor: AppColors.dividerLight,
       ),
 
@@ -271,7 +327,7 @@ class AppTheme {
       // Snackbar
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.onSurfaceLight,
-        contentTextStyle: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+        contentTextStyle: TextStyle(color: Colors.white, fontSize: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
@@ -281,8 +337,10 @@ class AppTheme {
         backgroundColor: AppColors.surfaceLight,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 4,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurfaceLight,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.onSurfaceLight,
         ),
       ),
 
@@ -351,8 +409,10 @@ class AppTheme {
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurfaceDark,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.onSurfaceDark,
         ),
         iconTheme: const IconThemeData(color: AppColors.onSurfaceDark),
         actionsIconTheme: const IconThemeData(color: AppColors.neutralLight),
@@ -365,7 +425,10 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 8,
         showUnselectedLabels: true,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        selectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
         unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
 
@@ -393,7 +456,10 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.secondaryLight, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.secondaryLight,
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -403,9 +469,18 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFFF6B6B), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.inter(color: AppColors.neutralLight, fontSize: 14),
-        labelStyle: GoogleFonts.inter(color: AppColors.neutralLight, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        hintStyle: TextStyle(
+          color: AppColors.neutralLight,
+          fontSize: 14,
+        ),
+        labelStyle: TextStyle(
+          color: AppColors.neutralLight,
+          fontSize: 14,
+        ),
         prefixIconColor: AppColors.neutralLight,
         suffixIconColor: AppColors.neutralLight,
       ),
@@ -415,9 +490,14 @@ class AppTheme {
           backgroundColor: AppColors.secondaryLight,
           foregroundColor: AppColors.backgroundDark,
           disabledBackgroundColor: AppColors.dividerDark,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
           elevation: 0,
         ),
       ),
@@ -426,23 +506,35 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.secondaryLight,
           side: const BorderSide(color: AppColors.secondaryLight, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.secondaryLight,
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariantDark,
         selectedColor: AppColors.secondaryLight.withOpacity(0.2),
-        labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurfaceDark),
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.onSurfaceDark,
+        ),
         side: const BorderSide(color: AppColors.dividerDark),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -453,8 +545,14 @@ class AppTheme {
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: AppColors.secondaryLight,
         unselectedLabelColor: AppColors.neutralLight,
-        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400),
+        labelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+        ),
         dividerColor: AppColors.dividerDark,
       ),
 
@@ -466,7 +564,10 @@ class AppTheme {
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceVariantDark,
-        contentTextStyle: GoogleFonts.inter(color: AppColors.onSurfaceDark, fontSize: 14),
+        contentTextStyle: TextStyle(
+          color: AppColors.onSurfaceDark,
+          fontSize: 14,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
@@ -475,8 +576,10 @@ class AppTheme {
         backgroundColor: AppColors.surfaceDark,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurfaceDark,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.onSurfaceDark,
         ),
       ),
 
