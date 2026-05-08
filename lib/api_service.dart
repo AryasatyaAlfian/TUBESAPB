@@ -47,37 +47,55 @@ class ApiService {
     String name,
     String email,
     String? nim,
+    String? jurusan,
+    String? angkatan,
     String password,
     String userType,
   ) async {
-    final url = Uri.parse('$baseUrl/register');
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'name': name,
-        'email': email,
-        'nim': nim,
-        'password': password,
-        'password_confirmation': password,
-        'user_type': userType,
-      }),
-    );
+    final body = <String, dynamic>{
+      'name': name,
+      'email': email,
+      'password': password,
+      'password_confirmation': password,
+      'user_type': userType,
+    };
+    if (nim != null && nim.isNotEmpty) {
+      body['nim'] = nim;
+    }
+    if (jurusan != null && jurusan.isNotEmpty) {
+      body['jurusan'] = jurusan;
+    }
+    if (angkatan != null && angkatan.isNotEmpty) {
+      body['angkatan'] = angkatan;
+    }
 
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return {
-        'success': true,
-        'message': data['message'] ?? 'Registrasi berhasil',
-      };
-    } else {
+    final url = Uri.parse('$baseUrl/register');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      final dynamic data = jsonDecode(response.body);
+      final message = data is Map<String, dynamic>
+          ? data['message'] ?? data['error'] ?? response.body
+          : response.body;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true, 'message': message};
+      }
+
       return {
         'success': false,
-        'message': data['message'] ?? 'Registrasi gagal',
+        'message': message,
+        'statusCode': response.statusCode,
       };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 

@@ -14,6 +14,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _nimCtrl = TextEditingController();
+  final _jurusanCtrl = TextEditingController();
+  final _angkatanCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
 
@@ -28,6 +30,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailCtrl.dispose();
     _nimCtrl.dispose();
     _passwordCtrl.dispose();
+    _jurusanCtrl.dispose();
+    _angkatanCtrl.dispose();
     _confirmPassCtrl.dispose();
     super.dispose();
   }
@@ -42,6 +46,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _nameCtrl.text.trim(),
         _emailCtrl.text.trim(),
         _userType == 'mahasiswa' ? _nimCtrl.text.trim() : null,
+        _userType == 'mahasiswa' ? _jurusanCtrl.text.trim() : null,
+        _userType == 'mahasiswa' ? _angkatanCtrl.text.trim() : null,
         _passwordCtrl.text,
         _userType,
       );
@@ -230,6 +236,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               validator: (value) {
                                 if (value?.isEmpty ?? true) {
                                   return 'NIM tidak boleh kosong';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            _label('JURUSAN'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _jurusanCtrl,
+                              decoration: const InputDecoration(
+                                hintText: 'Masukkan jurusan',
+                                prefixIcon: Icon(Icons.school_outlined),
+                              ),
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Jurusan tidak boleh kosong';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            _label('ANGKATAN'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _angkatanCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                hintText: 'Masukkan angkatan',
+                                prefixIcon: Icon(Icons.calendar_month_outlined),
+                              ),
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Angkatan tidak boleh kosong';
+                                }
+                                if (int.tryParse(value!) == null) {
+                                  return 'Angkatan harus berupa angka';
                                 }
                                 return null;
                               },
