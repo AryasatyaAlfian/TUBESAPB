@@ -1,6 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
+import '../api_service.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,28 +11,130 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Map<String, dynamic> _userData = {};
+  final _api = ApiService();
+  Map<String, dynamic>? _mahasiswa;
+  Map<String, dynamic>? _dosenProfile;
+  int? _totalPresensi;
+  int? _totalMahasiswa;
+  bool _loadingDetail = false;
+
+  bool get _isMahasiswa =>
+      (widget.user['role'] ?? 'mahasiswa').toString() == 'mahasiswa';
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _loadDetail();
   }
 
-  Future<void> _loadUser() async {
-    // TODO: Replace with shared_preferences after fixing dependencies
-    if (mounted) {
-      setState(() => _userData = widget.user);
-    }
+  Future<void> _loadDetail() async {
+    setState(() => _loadingDetail = true);
+    final res = _isMahasiswa
+        ? await _api.getMahasiswaProfile()
+        : await _api.getDosenProfile();
+    if (!mounted) return;
+    setState(() {
+      _loadingDetail = false;
+      if (res['success'] == true) {
+        if (_isMahasiswa) {
+          _mahasiswa = (res['data']['mahasiswa'] as Map?)
+              ?.cast<String, dynamic>();
+          _totalPresensi = res['data']['totalPresensi'] as int?;
+        } else {
+          _dosenProfile = Map<String, dynamic>.from(res['data'] as Map);
+          _totalMahasiswa = res['data']['totalMahasiswa'] as int?;
+        }
+      }
+    });
   }
 
   String _initial(String name) => name.isNotEmpty ? name[0].toUpperCase() : '?';
 
+  Future<void> _editProfile() async {
+    final jurusanCtrl = TextEditingController(
+      text: _mahasiswa?['jurusan']?.toString() ?? '',
+    );
+    final angkatanCtrl = TextEditingController(
+      text: _mahasiswa?['angkatan']?.toString() ?? '',
+    );
+    final phoneCtrl = TextEditingController(
+      text: _mahasiswa?['phone']?.toString() ?? '',
+    );
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Profil'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: jurusanCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Jurusan',
+                  prefixIcon: Icon(Icons.school_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: angkatanCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Angkatan',
+                  prefixIcon: Icon(Icons.calendar_month_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'No. Telepon',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+    final res = await _api.updateMahasiswaProfile(
+      jurusan: jurusanCtrl.text.trim(),
+      angkatan: angkatanCtrl.text.trim(),
+      phone: phoneCtrl.text.trim(),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          res['message'] ?? (res['success'] == true ? 'Tersimpan' : 'Gagal'),
+        ),
+        backgroundColor: res['success'] == true
+            ? AppColors.success
+            : AppColors.error,
+      ),
+    );
+    if (res['success'] == true) _loadDetail();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final name = _userData['name'] ?? widget.user['name'] ?? 'Pengguna';
-    final email = _userData['email'] ?? widget.user['email'] ?? '';
+    final name = widget.user['name'] ?? 'Pengguna';
+    final email = widget.user['email'] ?? '';
     final role = (widget.user['role'] ?? 'mahasiswa').toString();
     final roleLabel = role == 'dosen' ? 'Dosen' : 'Mahasiswa';
 
@@ -113,14 +214,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Info Section
-        _sectionLabel('INFORMASI AKUN'),
+        // Account info
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _sectionLabel('INFORMASI AKUN'),
+            if (_isMahasiswa)
+              TextButton.icon(
+                onPressed: _loadingDetail ? null : _editProfile,
+                icon: const Icon(Icons.edit_rounded, size: 16),
+                label: const Text('Edit'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 10),
         _infoCard(context, isDark, [
           _infoRow(context, Icons.person_rounded, 'Nama Lengkap', name),
           _infoRow(context, Icons.email_outlined, 'Email', email),
           _infoRow(context, Icons.badge_rounded, 'Role', roleLabel),
+          if (_isMahasiswa) ...[
+            _infoRow(
+              context,
+              Icons.tag_rounded,
+              'NIM',
+              _mahasiswa?['nim']?.toString() ?? '-',
+            ),
+            _infoRow(
+              context,
+              Icons.school_outlined,
+              'Jurusan',
+              _mahasiswa?['jurusan']?.toString() ?? '-',
+            ),
+            _infoRow(
+              context,
+              Icons.calendar_month_outlined,
+              'Angkatan',
+              _mahasiswa?['angkatan']?.toString() ?? '-',
+            ),
+            _infoRow(
+              context,
+              Icons.phone_outlined,
+              'No. Telepon',
+              _mahasiswa?['phone']?.toString() ?? '-',
+            ),
+          ],
         ]),
+        if (_isMahasiswa) ...[
+          const SizedBox(height: 20),
+          _sectionLabel('STATISTIK'),
+          const SizedBox(height: 10),
+          _infoCard(context, isDark, [
+            _infoRow(
+              context,
+              Icons.fact_check_rounded,
+              'Total Presensi',
+              (_totalPresensi ?? 0).toString(),
+            ),
+          ]),
+        ] else ...[
+          const SizedBox(height: 20),
+          _sectionLabel('STATISTIK DOSEN'),
+          const SizedBox(height: 10),
+          _infoCard(context, isDark, [
+            _infoRow(
+              context,
+              Icons.people_rounded,
+              'Total Mahasiswa',
+              (_totalMahasiswa ?? 0).toString(),
+            ),
+            _infoRow(
+              context,
+              Icons.class_rounded,
+              'Mata Kuliah',
+              ((_dosenProfile?['matkuls'] as List?)?.length ?? 0).toString(),
+            ),
+          ]),
+        ],
         const SizedBox(height: 20),
 
         // About App
@@ -219,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 18, color: AppColors.primary),

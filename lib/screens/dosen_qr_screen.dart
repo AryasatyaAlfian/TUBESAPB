@@ -69,8 +69,10 @@ class _DosenQrScreenState extends State<DosenQrScreen>
     // Stop previous timer
     _countdownTimer?.cancel();
 
-    final result =
-        await _apiService.generateQrCode(_selectedMatkulId!, _selectedDuration);
+    final result = await _apiService.generateQrCode(
+      _selectedMatkulId!,
+      _selectedDuration,
+    );
 
     if (!mounted) return;
     setState(() => _isGenerating = false);
@@ -81,8 +83,7 @@ class _DosenQrScreenState extends State<DosenQrScreen>
         _qrToken = result['token'] as String;
         _isExpired = false;
         if (expiresAtTimestamp != null) {
-          _expiresAt =
-              DateTime.fromMillisecondsSinceEpoch(expiresAtTimestamp);
+          _expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtTimestamp);
           _remainingTime = _expiresAt!.difference(DateTime.now());
         }
       });
@@ -145,193 +146,211 @@ class _DosenQrScreenState extends State<DosenQrScreen>
       body: _isLoadingMatkuls
           ? const Center(child: CircularProgressIndicator())
           : _matkuls.isEmpty
-              ? _buildEmptyState()
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Header
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppColors.primary, AppColors.primaryLight],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(Icons.qr_code_2_rounded,
-                                  color: Colors.white, size: 28),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Generate QR Presensi',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      'Mahasiswa scan QR untuk absensi otomatis',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                              color: Colors.white70)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+          ? _buildEmptyState()
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.primaryLight],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Settings Card
-                      _buildSectionLabel('Pengaturan QR'),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardTheme.color,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark
-                                ? AppColors.dividerDark
-                                : AppColors.dividerLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_2_rounded,
+                            color: Colors.white,
+                            size: 28,
                           ),
                         ),
-                        child: Column(
-                          children: [
-                            // Matkul Dropdown
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Mata Kuliah',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge
-                                          ?.copyWith(
-                                              color: AppColors.neutral,
-                                              fontSize: 11,
-                                              letterSpacing: 0.8)),
-                                  const SizedBox(height: 8),
-                                  DropdownButtonFormField<int>(
-                                    value: _selectedMatkulId,
-                                    decoration: InputDecoration(
-                                      prefixIcon: Icon(Icons.class_rounded,
-                                          color: cs.primary),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Generate QR Presensi',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
                                     ),
-                                    items: _matkuls
-                                        .map<DropdownMenuItem<int>>((m) =>
-                                            DropdownMenuItem<int>(
-                                              value: m['id'] as int,
-                                              child: Text(
-                                                m['nama'] ?? '-',
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ))
-                                        .toList(),
-                                    onChanged: (v) =>
-                                        setState(() => _selectedMatkulId = v),
-                                  ),
-                                ],
                               ),
-                            ),
-
-                            Divider(
-                                height: 1,
-                                color: isDark
-                                    ? AppColors.dividerDark
-                                    : AppColors.dividerLight),
-
-                            // Duration Selector
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Durasi Token Aktif',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge
-                                          ?.copyWith(
-                                              color: AppColors.neutral,
-                                              fontSize: 11,
-                                              letterSpacing: 0.8)),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: _durationOptions
-                                        .map((d) => Expanded(
-                                              child: Padding(
-                                                padding: const EdgeInsets.only(right: 8),
-                                                child: _buildDurationChip(d),
-                                              ),
-                                            ))
-                                        .toList(),
-                                  ),
-                                ],
+                              const SizedBox(height: 4),
+                              Text(
+                                'Mahasiswa scan QR untuk absensi otomatis',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: Colors.white70),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // ── Generate Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _isGenerating ? null : _generateQr,
-                          icon: _isGenerating
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.qr_code_scanner_rounded),
-                          label: Text(_isGenerating
-                              ? 'Generating...'
-                              : (_qrToken != null && _isExpired)
-                                  ? 'Generate Ulang'
-                                  : 'Generate QR Code'),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w600),
+                            ],
                           ),
                         ),
-                      ),
-
-                      // ── QR Display
-                      if (_qrToken != null) ...[
-                        const SizedBox(height: 24),
-                        _buildSectionLabel('QR Code Presensi'),
-                        const SizedBox(height: 12),
-                        _buildQrCard(isDark),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Settings Card
+                  _buildSectionLabel('Pengaturan QR'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.dividerDark
+                            : AppColors.dividerLight,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        // Matkul Dropdown
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Mata Kuliah',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: AppColors.neutral,
+                                      fontSize: 11,
+                                      letterSpacing: 0.8,
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<int>(
+                                initialValue: _selectedMatkulId,
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(
+                                    Icons.class_rounded,
+                                    color: cs.primary,
+                                  ),
+                                ),
+                                items: _matkuls
+                                    .map<DropdownMenuItem<int>>(
+                                      (m) => DropdownMenuItem<int>(
+                                        value: m['id'] as int,
+                                        child: Text(
+                                          m['nama'] ?? '-',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setState(() => _selectedMatkulId = v),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Divider(
+                          height: 1,
+                          color: isDark
+                              ? AppColors.dividerDark
+                              : AppColors.dividerLight,
+                        ),
+
+                        // Duration Selector
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Durasi Token Aktif',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: AppColors.neutral,
+                                      fontSize: 11,
+                                      letterSpacing: 0.8,
+                                    ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: _durationOptions
+                                    .map(
+                                      (d) => Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: _buildDurationChip(d),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Generate Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _isGenerating ? null : _generateQr,
+                      icon: _isGenerating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.qr_code_scanner_rounded),
+                      label: Text(
+                        _isGenerating
+                            ? 'Generating...'
+                            : (_qrToken != null && _isExpired)
+                            ? 'Generate Ulang'
+                            : 'Generate QR Code',
+                      ),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── QR Display
+                  if (_qrToken != null) ...[
+                    const SizedBox(height: 24),
+                    _buildSectionLabel('QR Code Presensi'),
+                    const SizedBox(height: 12),
+                    _buildQrCard(isDark),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 
@@ -354,18 +373,22 @@ class _DosenQrScreenState extends State<DosenQrScreen>
         ),
         child: Column(
           children: [
-            Text('$minutes',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? Colors.white : AppColors.neutral,
-                )),
-            Text('menit',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? Colors.white70 : AppColors.neutral,
-                )),
+            Text(
+              '$minutes',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : AppColors.neutral,
+              ),
+            ),
+            Text(
+              'menit',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: isSelected ? Colors.white70 : AppColors.neutral,
+              ),
+            ),
           ],
         ),
       ),
@@ -381,10 +404,10 @@ class _DosenQrScreenState extends State<DosenQrScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _isExpired
-              ? AppColors.error.withOpacity(0.5)
+              ? AppColors.error.withValues(alpha: 0.5)
               : isDark
-                  ? AppColors.dividerDark
-                  : AppColors.dividerLight,
+              ? AppColors.dividerDark
+              : AppColors.dividerLight,
           width: _isExpired ? 2 : 1,
         ),
       ),
@@ -412,10 +435,12 @@ class _DosenQrScreenState extends State<DosenQrScreen>
               const SizedBox(width: 8),
               if (!_isExpired)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: _timerColor().withOpacity(0.12),
+                    color: _timerColor().withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -451,11 +476,13 @@ class _DosenQrScreenState extends State<DosenQrScreen>
                 ImageFiltered(
                   imageFilter: _isExpired
                       ? ColorFilter.mode(
-                          Colors.grey.withOpacity(0.8),
+                          Colors.grey.withValues(alpha: 0.8),
                           BlendMode.saturation,
                         )
                       : const ColorFilter.mode(
-                          Colors.transparent, BlendMode.multiply),
+                          Colors.transparent,
+                          BlendMode.multiply,
+                        ),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -463,7 +490,7 @@ class _DosenQrScreenState extends State<DosenQrScreen>
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -489,7 +516,9 @@ class _DosenQrScreenState extends State<DosenQrScreen>
                 if (_isExpired)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.error,
                       borderRadius: BorderRadius.circular(12),
@@ -513,23 +542,25 @@ class _DosenQrScreenState extends State<DosenQrScreen>
           // Info
           if (!_isExpired) ...[
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.infoLight,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: AppColors.info, size: 18),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.info,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Minta mahasiswa scan QR ini untuk mencatat kehadiran secara otomatis.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.info,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.info),
                     ),
                   ),
                 ],
@@ -537,23 +568,25 @@ class _DosenQrScreenState extends State<DosenQrScreen>
             ),
           ] else ...[
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.errorLight,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      color: AppColors.error, size: 18),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'QR Code sudah tidak aktif. Generate ulang untuk sesi baru.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.error,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.error),
                     ),
                   ),
                 ],
@@ -569,10 +602,10 @@ class _DosenQrScreenState extends State<DosenQrScreen>
     return Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.neutral,
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w600,
-          ),
+        color: AppColors.neutral,
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 
@@ -589,23 +622,26 @@ class _DosenQrScreenState extends State<DosenQrScreen>
                 color: AppColors.infoLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.class_outlined,
-                  size: 48, color: AppColors.info),
+              child: const Icon(
+                Icons.class_outlined,
+                size: 48,
+                color: AppColors.info,
+              ),
             ),
             const SizedBox(height: 24),
-            Text('Belum Ada Mata Kuliah',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Belum Ada Mata Kuliah',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             Text(
               'Anda belum memiliki mata kuliah yang terdaftar. Hubungi admin untuk menambahkan mata kuliah.',
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.neutral),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.neutral),
             ),
           ],
         ),

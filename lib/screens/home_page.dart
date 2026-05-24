@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:mobile_scanner/mobile_scanner.dart' as ms;
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../api_service.dart';
 import '../providers/theme_provider.dart';
@@ -13,6 +13,11 @@ import 'mahasiswa_enrollment_screen.dart';
 import 'dosen_enrollment_screen.dart';
 import 'dosen_qr_screen.dart';
 import 'profile_screen.dart';
+import 'notifications_screen.dart';
+import 'analytics_screen.dart';
+import 'reports_screen.dart';
+import 'dosen_presence_screen.dart';
+import 'schedule_screen.dart';
 
 class HomePage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -28,7 +33,9 @@ class _HomePageState extends State<HomePage> {
   List<Widget> get _pages => _isMahasiswa
       ? [
           const MahasiswaDashboardView(),
-          const _ScanQrView(),
+          // Only mount the camera scanner while its tab is active so the
+          // camera permission isn't requested at app startup.
+          _currentIndex == 1 ? const _ScanQrView() : const SizedBox.shrink(),
           const MahasiswaIzinView(),
           const MahasiswaEnrollmentView(),
           ProfileScreen(user: widget.user, onLogout: _logout),
@@ -72,6 +79,50 @@ class _HomePageState extends State<HomePage> {
         centerTitle: false,
         actions: [
           IconButton(
+            tooltip: 'Notifikasi',
+            icon: const Icon(Icons.notifications_rounded),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Menu lainnya',
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: _openMenu,
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'analytics',
+                child: ListTile(
+                  leading: Icon(Icons.analytics_rounded),
+                  title: Text('Analytics'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'reports',
+                child: ListTile(
+                  leading: Icon(Icons.summarize_rounded),
+                  title: Text('Laporan'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'schedule',
+                child: ListTile(
+                  leading: Icon(Icons.calendar_month_rounded),
+                  title: Text('Jadwal'),
+                ),
+              ),
+              if (!_isMahasiswa)
+                const PopupMenuItem(
+                  value: 'manual-presence',
+                  child: ListTile(
+                    leading: Icon(Icons.fact_check_rounded),
+                    title: Text('Presensi Manual'),
+                  ),
+                ),
+            ],
+          ),
+          IconButton(
             tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -89,6 +140,18 @@ class _HomePageState extends State<HomePage> {
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: _buildBottomNav(isDark, cs),
     );
+  }
+
+  void _openMenu(String value) {
+    final role = _isMahasiswa ? 'mahasiswa' : 'dosen';
+    final Widget screen = switch (value) {
+      'analytics' => AnalyticsScreen(role: role),
+      'reports' => ReportsScreen(role: role),
+      'schedule' => ScheduleScreen(role: role),
+      'manual-presence' => const DosenPresenceScreen(),
+      _ => AnalyticsScreen(role: role),
+    };
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   Widget _buildBottomNav(bool isDark, ColorScheme cs) {
@@ -122,7 +185,7 @@ class _HomePageState extends State<HomePage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -158,7 +221,7 @@ class _HomePageState extends State<HomePage> {
                               (isSelected
                                       ? AppColors.primary
                                       : AppColors.secondary)
-                                  .withOpacity(0.4),
+                                  .withValues(alpha: 0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -179,7 +242,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.primary.withOpacity(0.1)
+                        ? AppColors.primary.withValues(alpha: 0.1)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -231,6 +294,15 @@ class _ScanQrViewState extends State<_ScanQrView> {
   bool? _success;
   String _message = '';
   final _api = ApiService();
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleScan(String token) async {
     if (_scanned) return;
@@ -238,6 +310,7 @@ class _ScanQrViewState extends State<_ScanQrView> {
       _scanned = true;
       _processing = true;
     });
+    await _controller.stop();
     final res = await _api.scanQr(token);
     if (mounted) {
       setState(() {
@@ -250,12 +323,25 @@ class _ScanQrViewState extends State<_ScanQrView> {
     }
   }
 
-  void _reset() => setState(() {
-    _scanned = false;
-    _processing = false;
-    _success = null;
-    _message = '';
-  });
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+    final raw = barcodes.first.rawValue;
+    if (raw != null && raw.isNotEmpty) {
+      _handleScan(raw);
+    }
+  }
+
+  void _reset() {
+    setState(() {
+      _scanned = false;
+      _processing = false;
+      _success = null;
+      _message = '';
+    });
+    _controller.start();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,14 +350,34 @@ class _ScanQrViewState extends State<_ScanQrView> {
     }
     return Stack(
       children: [
-        // MobileScanner placeholder - will be enabled after fixing dependencies
-        Container(
-          color: Colors.black,
-          child: const Center(
-            child: Text(
-              'QR Scanner\n(Placeholder)',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white),
+        // Live camera preview
+        MobileScanner(
+          controller: _controller,
+          onDetect: _onDetect,
+          errorBuilder: (context, error) => Container(
+            color: Colors.black,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.no_photography_rounded,
+                      color: Colors.white70,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Kamera tidak tersedia.\nBerikan izin kamera untuk memindai QR.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

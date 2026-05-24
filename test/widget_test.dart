@@ -1,34 +1,35 @@
-// This is a basic Flutter widget test.
+// Widget tests for the login screen of the attendance app.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// These render LoginScreen directly (rather than the full app) so they don't
+// depend on platform plugins like secure storage or the camera.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tubesapb/main.dart';
+import 'package:tubesapb/screens/login_screen.dart';
 
 void main() {
-  testWidgets('Login opens dashboard', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Login screen shows the core UI elements', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
-    expect(find.text('Sistem Absensi Kampus'), findsOneWidget);
-    expect(find.text('Masuk'), findsOneWidget);
+    expect(find.text('Sistem Presensi'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Masuk'), findsOneWidget);
+    expect(find.text('Mahasiswa'), findsWidgets);
+    expect(find.text('Dosen'), findsWidgets);
+    // Email + password fields are present.
+    expect(find.byType(TextField), findsNWidgets(2));
+  });
 
-    await tester.enterText(find.byWidgetPredicate((widget) {
-      return widget is TextField && widget.decoration?.labelText == 'Email';
-    }), 'admin@kampus.com');
-    await tester.enterText(find.byWidgetPredicate((widget) {
-      return widget is TextField && widget.decoration?.labelText == 'Kata Sandi';
-    }), '123456');
+  testWidgets('Submitting an empty form shows a validation message', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Masuk'));
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pumpAndSettle();
+    final loginButton = find.widgetWithText(FilledButton, 'Masuk');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
+    await tester.pump(); // build the SnackBar
 
-    expect(find.text('Dashboard Absensi'), findsOneWidget);
-    expect(find.text('Ringkasan Hari Ini'), findsOneWidget);
+    expect(find.text('Email dan password harus diisi.'), findsOneWidget);
   });
 }

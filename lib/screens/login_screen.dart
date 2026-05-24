@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// import 'package:google_fonts/google_fonts.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
 import 'forgot_password_screen.dart';
@@ -82,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -125,7 +124,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.3 : 0.08,
+                          ),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -326,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.2),
+                      color: AppColors.primary.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),

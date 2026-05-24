@@ -252,10 +252,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           elevation: 0,
         ),
       ),
@@ -269,10 +266,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -280,21 +274,15 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
       // Chip
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariantLight,
-        selectedColor: AppColors.primary.withOpacity(0.12),
-        labelStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
+        selectedColor: AppColors.primary.withValues(alpha: 0.12),
+        labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         side: const BorderSide(color: AppColors.dividerLight),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -306,10 +294,7 @@ class AppTheme {
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.neutral,
-        labelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         unselectedLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
@@ -473,14 +458,8 @@ class AppTheme {
           horizontal: 16,
           vertical: 14,
         ),
-        hintStyle: TextStyle(
-          color: AppColors.neutralLight,
-          fontSize: 14,
-        ),
-        labelStyle: TextStyle(
-          color: AppColors.neutralLight,
-          fontSize: 14,
-        ),
+        hintStyle: TextStyle(color: AppColors.neutralLight, fontSize: 14),
+        labelStyle: TextStyle(color: AppColors.neutralLight, fontSize: 14),
         prefixIconColor: AppColors.neutralLight,
         suffixIconColor: AppColors.neutralLight,
       ),
@@ -494,10 +473,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           elevation: 0,
         ),
       ),
@@ -510,26 +486,20 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.secondaryLight,
-          textStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariantDark,
-        selectedColor: AppColors.secondaryLight.withOpacity(0.2),
+        selectedColor: AppColors.secondaryLight.withValues(alpha: 0.2),
         labelStyle: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
@@ -545,10 +515,7 @@ class AppTheme {
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: AppColors.secondaryLight,
         unselectedLabelColor: AppColors.neutralLight,
-        labelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         unselectedLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
