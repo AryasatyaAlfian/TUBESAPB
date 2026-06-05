@@ -20,6 +20,10 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
   int? _selectedMatkul;
   String _tanggal = DateTime.now().toIso8601String().substring(0, 10);
   final Map<int, String> _statuses = {};
+  final Map<int, String> _initialStatuses = {};
+  final Set<int> _lockedIds = {};
+  String _searchQuery = '';
+  String _filterStatus = 'all';
 
   static const _statusOptions = ['hadir', 'izin', 'sakit', 'alpha'];
 
@@ -49,11 +53,22 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
           data['presenceMap'] as Map? ?? {},
         );
         _statuses.clear();
+        _lockedIds.clear();
         for (final m in _mahasiswas) {
           final id = m['id'] as int;
           final existing = _presenceMap[id.toString()];
-          _statuses[id] = existing?['status'] ?? 'alpha';
+          final status = existing is Map ? existing['status'] as String? : null;
+          _statuses[id] = status ?? 'alpha';
+          if (existing is Map &&
+              (existing['locked'] == true ||
+                  existing['readonly'] == true ||
+                  existing['finalized'] == true)) {
+            _lockedIds.add(id);
+          }
         }
+        _initialStatuses
+          ..clear()
+          ..addAll(_statuses);
         _error = '';
       } else {
         _error = res['message'] ?? 'Gagal mengambil presensi';
@@ -73,6 +88,142 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
       setState(() => _tanggal = picked.toIso8601String().substring(0, 10));
       await _load();
     }
+  }
+
+  bool get _hasChanges {
+    if (_statuses.length != _initialStatuses.length) return true;
+    for (final entry in _statuses.entries) {
+      if (_initialStatuses[entry.key] != entry.value) return true;
+    }
+    return false;
+  }
+
+  void _setAllStatus(String status) {
+    setState(() {
+      for (final mahasiswa in _mahasiswas) {
+        final id = mahasiswa['id'] as int;
+        if (_lockedIds.contains(id)) continue;
+        _statuses[id] = status;
+      }
+    });
+  }
+
+  void _undoChanges() {
+    setState(() {
+      _statuses
+        ..clear()
+        ..addAll(_initialStatuses);
+      _searchQuery = '';
+      _filterStatus = 'all';
+    });
+  }
+
+  Widget _buildPresenceToolbar(bool isDark) {
+    final changedCount = _statuses.entries
+        .where((entry) => _initialStatuses[entry.key] != entry.value)
+        .length;
+    final lockedCount = _lockedIds.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search_rounded),
+            hintText: 'Cari nama atau NIM',
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => setState(() => _searchQuery = ''),
+                  )
+                : null,
+          ),
+          onChanged: (value) => setState(() => _searchQuery = value),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _filterStatus,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.filter_alt_rounded),
+                  labelText: 'Filter status',
+                ),
+                items: [
+                  const DropdownMenuItem(value: 'all', child: Text('Semua')),
+                  ..._statusOptions.map(
+                    (s) => DropdownMenuItem(value: s, child: Text(_label(s))),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _filterStatus = value ?? 'all'),
+              ),
+            ),
+            if (lockedCount > 0) ...[
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_rounded, size: 14, color: AppColors.warning),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$lockedCount terkunci',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: () => _setAllStatus('alpha'),
+                child: const Text('Set semua Alpha'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => _setAllStatus('hadir'),
+                child: const Text('Set semua Hadir'),
+              ),
+            ),
+          ],
+        ),
+        if (_hasChanges) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Perubahan belum disimpan ($changedCount)',
+                style: TextStyle(
+                  color: isDark ? Colors.white : AppColors.warning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              TextButton(
+                onPressed: _undoChanges,
+                child: const Text('Undo'),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _save() async {
@@ -131,6 +282,20 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
     if (_matkuls.isEmpty) return _empty('Belum ada mata kuliah');
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filteredMahasiswas = _mahasiswas.where((mahasiswa) {
+      final id = mahasiswa['id'] as int;
+      final user = mahasiswa['user'] ?? {};
+      final name = user['name']?.toString().toLowerCase() ?? '';
+      final nim = mahasiswa['nim']?.toString().toLowerCase() ?? '';
+      final query = _searchQuery.toLowerCase();
+      final matchesSearch =
+          query.isEmpty || name.contains(query) || nim.contains(query);
+      final status = _statuses[id]?.toLowerCase() ?? '';
+      final matchesFilter =
+          _filterStatus == 'all' || status == _filterStatus;
+      return matchesSearch && matchesFilter;
+    }).toList();
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -188,10 +353,12 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (_mahasiswas.isEmpty)
-            _empty('Belum ada mahasiswa approved di matkul ini')
+          _buildPresenceToolbar(isDark),
+          const SizedBox(height: 20),
+          if (filteredMahasiswas.isEmpty)
+            _empty('Tidak ada mahasiswa yang cocok dengan filter')
           else
-            ..._mahasiswas.map(_studentTile),
+            ...filteredMahasiswas.map(_studentTile),
         ],
       ),
     );
@@ -201,6 +368,8 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
     final id = mahasiswa['id'] as int;
     final user = mahasiswa['user'] ?? {};
     final name = user['name'] ?? mahasiswa['nim'] ?? 'Mahasiswa';
+    final status = _statuses[id] ?? 'alpha';
+    final locked = _lockedIds.contains(id);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -229,23 +398,51 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  'NIM: ${mahasiswa['nim'] ?? '-'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.neutral,
-                  ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      'NIM: ${mahasiswa['nim'] ?? '-'}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.neutral,
+                      ),
+                    ),
+                    if (locked) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.warningLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Locked',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.warning,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
           DropdownButton<String>(
-            value: _statuses[id] ?? 'alpha',
+            value: status,
             underline: const SizedBox.shrink(),
             items: _statusOptions
                 .map((s) => DropdownMenuItem(value: s, child: Text(_label(s))))
                 .toList(),
-            onChanged: (v) => setState(() => _statuses[id] = v ?? 'alpha'),
+            onChanged: locked
+                ? null
+                : (v) => setState(() => _statuses[id] = v ?? 'alpha'),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'api_service.dart';
+import 'config/environment_config.dart';
 import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
@@ -25,7 +26,7 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Sistem Presensi',
+          title: 'Sistem Presensi (${EnvironmentConfig.environmentName})',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,

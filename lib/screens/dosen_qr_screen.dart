@@ -11,8 +11,7 @@ class DosenQrScreen extends StatefulWidget {
   State<DosenQrScreen> createState() => _DosenQrScreenState();
 }
 
-class _DosenQrScreenState extends State<DosenQrScreen>
-    with SingleTickerProviderStateMixin {
+class _DosenQrScreenState extends State<DosenQrScreen> {
   final ApiService _apiService = ApiService();
 
   List<dynamic> _matkuls = [];
@@ -28,22 +27,13 @@ class _DosenQrScreenState extends State<DosenQrScreen>
   Duration _remainingTime = Duration.zero;
   Timer? _countdownTimer;
 
-  // Animation
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+  // QR is displayed as a stable static image so projected scanning stays reliable.
 
   final List<int> _durationOptions = [5, 10, 15, 30];
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
     _loadMatkuls();
   }
 
@@ -132,7 +122,6 @@ class _DosenQrScreenState extends State<DosenQrScreen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -459,17 +448,7 @@ class _DosenQrScreenState extends State<DosenQrScreen>
           const SizedBox(height: 24),
 
           // QR Code
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: (!_isExpired && !_isGenerating)
-                    ? _pulseAnimation.value
-                    : 1.0,
-                child: child,
-              );
-            },
-            child: Stack(
+          Stack(
               alignment: Alignment.center,
               children: [
                 // QR Image
@@ -535,7 +514,6 @@ class _DosenQrScreenState extends State<DosenQrScreen>
                   ),
               ],
             ),
-          ),
 
           const SizedBox(height: 20),
 

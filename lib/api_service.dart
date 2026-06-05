@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'config/environment_config.dart';
 
 class ApiService {
-  static const String baseUrl =
-      'http://10.0.2.2:8000/api'; // Emulator loopback to host; change to LAN IP for a physical device.
+  static final String baseUrl = EnvironmentConfig.baseUrl;
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _tokenKey = 'auth_token';
