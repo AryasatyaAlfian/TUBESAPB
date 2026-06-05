@@ -682,4 +682,34 @@ class ApiService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  // ── Attendance Analytics (dosen) ──────────────────────
+
+  /// Get attendance data for weekly/monthly charts
+  /// Returns: { week_number: count } for last 4 weeks or month_year: count for last 6 months
+  Future<Map<String, dynamic>> getAttendanceAnalytics({
+    int? matkulId,
+    String period = 'week', // 'week' or 'month'
+  }) {
+    final params = <String>['period=$period'];
+    if (matkulId != null) params.add('matkul_id=$matkulId');
+    return _get(
+      '/dosen/analytics/attendance${params.isNotEmpty ? '?${params.join('&')}' : ''}',
+    );
+  }
+
+  /// Get attendance percentage by subject (mata kuliah)
+  /// Returns: [{ matkul_id, matkul_nama, attendance_percentage, total_students }]
+  Future<Map<String, dynamic>> getAttendanceBySubject() =>
+      _get('/dosen/analytics/by-subject');
+
+  /// Get students with attendance below threshold (< 75%)
+  /// Returns: [{ id, name, nim, attendance_percentage, status }]
+  Future<Map<String, dynamic>> getAtRiskStudents({double threshold = 75.0}) =>
+      _get('/dosen/analytics/at-risk?threshold=$threshold');
+
+  /// Get students absent today
+  /// Returns: [{ id, name, nim, matkul_nama }]
+  Future<Map<String, dynamic>> getAbsentToday() =>
+      _get('/dosen/analytics/absent-today');
 }
