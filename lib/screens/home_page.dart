@@ -31,33 +31,37 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   bool get _isMahasiswa => widget.user['role'] == 'mahasiswa';
 
+  // Notification badge state
+  int _unreadCount = 0;
+  bool _loadingNotifications = false;
+  
+  // Validation badge state (dosen only)
+  int _pendingValidations = 0;
+  bool _loadingValidations = false;
+  
+  late final _api = ApiService();
+
   List<Widget> get _pages => _isMahasiswa
       ? [
           const MahasiswaDashboardView(),
+          const MahasiswaIzinView(),
           // Only mount the camera scanner while its tab is active so the
           // camera permission isn't requested at app startup.
-          _currentIndex == 1 ? const _ScanQrView() : const SizedBox.shrink(),
-          const MahasiswaIzinView(),
+          _currentIndex == 2 ? const _ScanQrView() : const SizedBox.shrink(),
           const MahasiswaEnrollmentView(),
           ProfileScreen(user: widget.user, onLogout: _logout),
         ]
       : [
           const DosenDashboardView(),
-          const DosenQrScreen(),
           const DosenIzinView(),
-          const DosenEnrollmentView(),
+          const DosenQrScreen(),
+          DosenEnrollmentView(onValidationUpdated: _loadValidationCount),
           ProfileScreen(user: widget.user, onLogout: _logout),
         ];
 
   List<String> get _titles => _isMahasiswa
-      ? ['Dashboard', 'Scan QR', 'Pengajuan Izin', 'Ambil Matkul', 'Profil']
-      : [
-          'Dashboard',
-          'Generate QR',
-          'Validasi Izin',
-          'Validasi Mahasiswa',
-          'Profil',
-        ];
+      ? ['Dashboard', 'Pengajuan Izin', 'Scan QR', 'Ambil Matkul', 'Profil']
+      : ['Dashboard', 'Validasi Izin', 'Generate QR', 'Validasi Mahasiswa', 'Profil'];
 
   void _logout() async {
     await ApiService().logout();
@@ -69,6 +73,108 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+    if (!_isMahasiswa) {
+      _loadValidationCount();
+    }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    if (_loadingNotifications) return;
+    setState(() => _loadingNotifications = true);
+    try {
+      final res = await _api.getNotifications();
+      if (mounted && res['success'] == true) {
+        final notifications = res['data']['notifications'] as List<dynamic>? ?? [];
+        final unread = notifications.where((n) => n['read_at'] == null).length;
+        setState(() => _unreadCount = unread);
+      }
+    } catch (e) {
+      // Silently fail, badge won't update
+    } finally {
+      if (mounted) setState(() => _loadingNotifications = false);
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    // Mark all as read
+    await _api.markAllNotificationsRead();
+    if (mounted) {
+      setState(() => _unreadCount = 0);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+      ).then((_) {
+        // Refresh on return
+        _loadUnreadCount();
+      });
+    }
+  }
+
+  Future<void> _loadValidationCount() async {
+    if (_loadingValidations) return;
+    setState(() => _loadingValidations = true);
+    try {
+      int pendingCount = 0;
+      
+      // Get pending izin
+      final izinRes = await _api.getDosenIzin();
+      if (izinRes['success'] == true) {
+        final izins = izinRes['data']['izins'] as List<dynamic>? ?? [];
+        pendingCount += izins.where((i) => i['status'] == 'pending').length;
+      }
+      
+      // Get pending enrollment requests
+      final enrollRes = await _api.getDosenEnrollmentRequests();
+      if (enrollRes['success'] == true) {
+        final requests = enrollRes['data']['enrollmentRequests'] as List<dynamic>? ?? [];
+        pendingCount += requests.where((r) => r['status'] == 'pending').length;
+      }
+      
+      if (mounted) {
+        setState(() => _pendingValidations = pendingCount);
+      }
+    } catch (e) {
+      // Silently fail
+    } finally {
+      if (mounted) setState(() => _loadingValidations = false);
+    }
+  }
+
+  Widget _buildTitle() {
+    final title = _titles[_currentIndex];
+    
+    // Show validation badge for dosen on validasi izin & validasi screens
+    final showValidationBadge = !_isMahasiswa && 
+      (_currentIndex == 1 || _currentIndex == 3) && 
+      _pendingValidations > 0;
+    
+    if (showValidationBadge) {
+      return Stack(
+        children: [
+          Text(title),
+          Positioned(
+            right: -8,
+            top: -8,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: AppColors.error,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    return Text(title);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = themeProvider.isDark;
@@ -76,16 +182,30 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
+        title: _buildTitle(),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: 'Notifikasi',
-            icon: const Icon(Icons.notifications_rounded),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
+          Stack(
+            children: [
+              IconButton(
+                tooltip: 'Notifikasi',
+                icon: const Icon(Icons.notifications_rounded),
+                onPressed: _openNotifications,
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
           PopupMenuButton<String>(
             tooltip: 'Menu lainnya',
@@ -166,20 +286,20 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBottomNav(bool isDark, ColorScheme cs) {
     final navBg = isDark ? AppColors.surfaceDark : Colors.white;
     final items = _isMahasiswa
-        ? ['Dashboard', 'Scan', 'Izin', 'Matkul', 'Profil']
-        : ['Dashboard', 'QR', 'Izin', 'Validasi', 'Profil'];
+        ? ['Dashboard', 'Izin', 'Scan', 'Matkul', 'Profil']
+        : ['Dashboard', 'Izin', 'QR', 'Validasi', 'Profil'];
     final icons = _isMahasiswa
         ? [
             Icons.home_rounded,
-            Icons.qr_code_scanner_rounded,
             Icons.edit_document,
+            Icons.qr_code_scanner_rounded,
             Icons.library_books_rounded,
             Icons.person_rounded,
           ]
         : [
             Icons.home_rounded,
-            Icons.qr_code_2_rounded,
             Icons.fact_check_rounded,
+            Icons.qr_code_2_rounded,
             Icons.people_rounded,
             Icons.person_rounded,
           ];
@@ -206,7 +326,7 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(5, (i) {
-              final isCenter = i == 1; // Scan/QR tab
+              final isCenter = i == 2; // Scan/QR tab (center)
               final isSelected = _currentIndex == i;
 
               if (isCenter) {
@@ -258,12 +378,30 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        icons[i],
-                        size: 22,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.neutral,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            icons[i],
+                            size: 22,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.neutral,
+                          ),
+                          if (!_isMahasiswa && i == 3 && _pendingValidations > 0)
+                            Positioned(
+                              right: -1,
+                              top: -1,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(

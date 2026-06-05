@@ -13,6 +13,11 @@ class _DosenIzinViewState extends State<DosenIzinView> {
   bool _loading = true;
   String _error = '';
   List<dynamic> _izins = [];
+  
+  // Multi-select state
+  bool _selectionMode = false;
+  Set<int> _selectedIds = {};
+  bool _batchProcessing = false;
 
   @override
   void initState() {
@@ -26,6 +31,8 @@ class _DosenIzinViewState extends State<DosenIzinView> {
     if (!mounted) return;
     setState(() {
       _loading = false;
+      _selectionMode = false;
+      _selectedIds.clear();
       if (res['success'] == true) {
         _izins = res['data']['izins'] ?? [];
         _error = '';
@@ -55,6 +62,68 @@ class _DosenIzinViewState extends State<DosenIzinView> {
       ),
     );
     if (res['success'] == true) _load();
+  }
+
+  Future<void> _handleBatch(bool approve) async {
+    if (_selectedIds.isEmpty) return;
+    
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(approve ? 'Terima Semua?' : 'Tolak Semua?'),
+        content: Text(
+          approve
+              ? 'Terima $count pengajuan izin?'
+              : 'Tolak $count pengajuan izin?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: approve ? AppColors.success : AppColors.error,
+            ),
+            child: Text(approve ? 'Terima' : 'Tolak'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    
+    setState(() => _batchProcessing = true);
+    int successCount = 0;
+    
+    for (final id in _selectedIds) {
+      final res = await _api.setIzinStatus(id, approve);
+      if (res['success'] == true) successCount++;
+    }
+    
+    if (!mounted) return;
+    setState(() => _batchProcessing = false);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$successCount dari $count berhasil diproses'),
+        backgroundColor: successCount == count ? AppColors.success : AppColors.warning,
+      ),
+    );
+    
+    if (successCount > 0) _load();
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
   }
 
   void _showBukti(dynamic iz) {
@@ -163,156 +232,255 @@ class _DosenIzinViewState extends State<DosenIzinView> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        itemCount: _izins.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final iz = _izins[i];
-          final user = iz['mahasiswa']?['user'] ?? {};
-          final matkul = iz['matkul'] ?? {};
-          final status = iz['status'] ?? 'pending';
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-
-          return Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: _izins.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (context, i) {
+              final iz = _izins[i];
+              final id = iz['id'] as int;
+              final isSelected = _selectedIds.contains(id);
+              return GestureDetector(
+                onLongPress: () {
+                  setState(() => _selectionMode = true);
+                  _toggleSelection(id);
+                },
+                child: _buildIzinItem(iz, isSelected),
+              );
+            },
+          ),
+        ),
+        if (_selectionMode && _selectedIds.isNotEmpty && !_batchProcessing)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildBatchActionBar(),
+          ),
+        if (_batchProcessing)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
-            child: Column(
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBatchActionBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _handleBatch(false),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Tolak Semua'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _handleBatch(true),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Terima Semua'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton(
+                onPressed: () => setState(() {
+                  _selectionMode = false;
+                  _selectedIds.clear();
+                }),
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Batal',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIzinItem(dynamic iz, bool isSelected) {
+    final user = iz['mahasiswa']?['user'] ?? {};
+    final matkul = iz['matkul'] ?? {};
+    final status = iz['status'] ?? 'pending';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected
+              ? AppColors.primary
+              : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                if (_selectionMode)
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => _toggleSelection(iz['id'] as int),
+                  )
+                else
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    child: Text(
+                      (user['name'] ?? 'M').toString().isNotEmpty
+                          ? user['name'].toString()[0].toUpperCase()
+                          : 'M',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppColors.primary.withValues(
-                          alpha: 0.1,
-                        ),
-                        child: Text(
-                          (user['name'] ?? 'M').toString().isNotEmpty
-                              ? user['name'].toString()[0].toUpperCase()
-                              : 'M',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
+                      Text(
+                        user['name'] ?? 'Mahasiswa',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user['name'] ?? 'Mahasiswa',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${matkul['nama'] ?? '-'} • ${iz['tanggal'] ?? '-'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.neutral,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _statusBg(status),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _statusLabel(status),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _statusColor(status),
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${matkul['nama'] ?? '-'} • ${iz['tanggal'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.neutral,
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (iz['alasan'] != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.surfaceVariantDark
-                          : AppColors.backgroundLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      iz['alasan'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.neutral,
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showBukti(iz),
-                      icon: const Icon(Icons.attachment_rounded, size: 18),
-                      label: const Text('Lihat Bukti'),
+                  decoration: BoxDecoration(
+                    color: _statusBg(status),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _statusLabel(status),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _statusColor(status),
                     ),
                   ),
                 ),
-                if (status == 'pending')
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _handle(iz['id'], false),
-                            icon: const Icon(Icons.close_rounded, size: 18),
-                            label: const Text('Tolak'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.error,
-                              side: const BorderSide(color: AppColors.error),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => _handle(iz['id'], true),
-                            icon: const Icon(Icons.check_rounded, size: 18),
-                            label: const Text('Setujui'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
-          );
-        },
+          ),
+          if (iz['alasan'] != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.surfaceVariantDark
+                    : AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                iz['alasan'] ?? '',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.neutral,
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showBukti(iz),
+                icon: const Icon(Icons.attachment_rounded, size: 18),
+                label: const Text('Lihat Bukti'),
+              ),
+            ),
+          ),
+          if (status == 'pending' && !_selectionMode)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _handle(iz['id'], false),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('Tolak'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _handle(iz['id'], true),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Setujui'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

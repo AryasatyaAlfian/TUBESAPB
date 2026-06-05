@@ -42,8 +42,8 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     if (_loading) return _shimmer();
     if (_error.isNotEmpty) return _errorView();
     final total = _data['totalMahasiswa'] ?? 0;
-    final matkuls = _data['matkuls'] as List? ?? [];
-    final today = _data['todaysMatkuls'] as List? ?? [];
+    final matkuls = _data['matkuls'] is List ? _data['matkuls'] as List : [];
+    final today = _data['todaysMatkuls'] is List ? _data['todaysMatkuls'] as List : [];
 
     return RefreshIndicator(
       onRefresh: _load,
