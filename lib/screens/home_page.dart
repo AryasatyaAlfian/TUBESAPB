@@ -18,6 +18,7 @@ import 'analytics_screen.dart';
 import 'reports_screen.dart';
 import 'dosen_presence_screen.dart';
 import 'schedule_screen.dart';
+import '../widgets/chat_assistant.dart';
 
 class HomePage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -137,7 +138,15 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: _pages),
+          // Floating AI assistant — overlays every tab, for both roles.
+          // The backend resolves the role from the auth token, so the answers
+          // adapt automatically for any account (including newly registered).
+          ChatAssistant(user: widget.user),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNav(isDark, cs),
     );
   }

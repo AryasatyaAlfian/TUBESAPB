@@ -655,4 +655,31 @@ class ApiService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  // ── AI Chat Assistant ─────────────────────────────────
+
+  /// Sends a message to the role-aware AI agent (`POST /chat`).
+  /// The backend resolves the user's role from the auth token, so the same
+  /// call serves both dosen and mahasiswa — the reply adapts automatically.
+  Future<Map<String, dynamic>> sendChatMessage(String message) async {
+    final token = await getToken();
+    if (token == null) return {'success': false, 'message': 'Belum login'};
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/chat'),
+        headers: _authHeaders(token, json: true),
+        body: jsonEncode({'message': message}),
+      );
+      final data = _tryDecode(response.body);
+      if (response.statusCode == 200 && data is Map && data['reply'] != null) {
+        return {'success': true, 'reply': data['reply'].toString()};
+      }
+      return {
+        'success': false,
+        'message': _messageFrom(data, 'Asisten sedang tidak tersedia'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }
