@@ -269,16 +269,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     ),
   );
 
-  Widget _empty(String text) => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: AppColors.infoLight,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Center(
-      child: Text(text, style: const TextStyle(color: AppColors.info)),
-    ),
-  );
+  Widget _empty(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+      ),
+      child: Center(
+        child: Text(text, style: const TextStyle(color: AppColors.info)),
+      ),
+    );
+  }
 
   Widget _errorView() => Center(
     child: Column(

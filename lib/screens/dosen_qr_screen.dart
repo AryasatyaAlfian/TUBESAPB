@@ -345,6 +345,8 @@ class _DosenQrScreenState extends State<DosenQrScreen> {
 
   Widget _buildDurationChip(int minutes) {
     final isSelected = _selectedDuration == minutes;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () => setState(() => _selectedDuration = minutes),
       child: AnimatedContainer(
@@ -352,11 +354,13 @@ class _DosenQrScreenState extends State<DosenQrScreen> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
+              ? cs.primary
+              : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.dividerLight,
+            color: isSelected
+                ? cs.primary
+                : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -367,7 +371,7 @@ class _DosenQrScreenState extends State<DosenQrScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.neutral,
+                color: isSelected ? cs.onPrimary : AppColors.neutral,
               ),
             ),
             Text(
@@ -375,7 +379,9 @@ class _DosenQrScreenState extends State<DosenQrScreen> {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: isSelected ? Colors.white70 : AppColors.neutral,
+                color: isSelected
+                    ? cs.onPrimary.withValues(alpha: 0.8)
+                    : AppColors.neutral,
               ),
             ),
           ],

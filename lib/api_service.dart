@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,23 @@ import 'config/environment_config.dart';
 
 class ApiService {
   static final String baseUrl = EnvironmentConfig.baseUrl;
+
+  /// Hard cap on every network request so the UI can never spin forever when
+  /// the server is slow or unreachable — a TimeoutException surfaces as a
+  /// friendly, retry-able error instead of an endless loading indicator.
+  static const Duration _timeout = Duration(seconds: 30);
+
+  /// Maps low-level network failures to a short, human-readable Indonesian
+  /// message instead of leaking a raw exception string into the UI.
+  String _networkError(Object e) {
+    if (e is TimeoutException) {
+      return 'Server tidak merespons. Periksa koneksi lalu coba lagi.';
+    }
+    if (e is SocketException) {
+      return 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+    }
+    return 'Terjadi kesalahan jaringan. Silakan coba lagi.';
+  }
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _tokenKey = 'auth_token';
@@ -80,7 +98,7 @@ class ApiService {
           'password': password,
           'user_type': userType,
         }),
-      );
+      ).timeout(_timeout);
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 &&
@@ -91,7 +109,7 @@ class ApiService {
       }
       return {'success': false, 'message': _messageFrom(data, 'Login gagal')};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -124,7 +142,7 @@ class ApiService {
           'Accept': 'application/json',
         },
         body: jsonEncode(body),
-      );
+      ).timeout(_timeout);
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -139,7 +157,7 @@ class ApiService {
         'statusCode': response.statusCode,
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -147,10 +165,12 @@ class ApiService {
     final token = await getToken();
     if (token != null) {
       try {
-        await http.post(
-          Uri.parse('$baseUrl/logout'),
-          headers: _authHeaders(token),
-        );
+        await http
+            .post(
+              Uri.parse('$baseUrl/logout'),
+              headers: _authHeaders(token),
+            )
+            .timeout(_timeout);
       } catch (_) {
         // ignore network errors on logout; clear local session regardless
       }
@@ -169,10 +189,9 @@ class ApiService {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'Belum login'};
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$path'),
-        headers: _authHeaders(token),
-      );
+      final response = await http
+          .get(Uri.parse('$baseUrl$path'), headers: _authHeaders(token))
+          .timeout(_timeout);
       if (response.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(response.body)};
       }
@@ -184,7 +203,7 @@ class ApiService {
         ),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -207,7 +226,7 @@ class ApiService {
         Uri.parse('$baseUrl/mahasiswa/scan'),
         headers: _authHeaders(token, json: true),
         body: jsonEncode({'token': qrToken}),
-      );
+      ).timeout(_timeout);
 
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -218,7 +237,7 @@ class ApiService {
       }
       return {'success': false, 'message': _messageFrom(data, 'Gagal scan QR')};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -234,7 +253,7 @@ class ApiService {
           '$baseUrl/dosen/qr-code?matkul_id=$matkulId&duration=$durationMinutes',
         ),
         headers: _authHeaders(token),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 &&
           data is Map &&
@@ -254,7 +273,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal generate QR'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -285,7 +304,8 @@ class ApiService {
         await http.MultipartFile.fromPath('bukti_file', buktiFile.path),
       );
 
-      final streamed = await request.send();
+      // File upload may legitimately take longer than a plain request.
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamed);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -299,7 +319,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal mengajukan izin'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -313,14 +333,14 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/dosen/izin/$izinId/$action'),
         headers: _authHeaders(token),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': _messageFrom(data, 'Berhasil')};
       }
       return {'success': false, 'message': _messageFrom(data, 'Gagal')};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -336,7 +356,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/mahasiswa/enrollments/$matkulId'),
         headers: _authHeaders(token),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {
@@ -349,7 +369,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal mengajukan'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -367,7 +387,7 @@ class ApiService {
       final response = await http.patch(
         Uri.parse('$baseUrl/dosen/enrollments/$enrollmentId/$action'),
         headers: _authHeaders(token),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': _messageFrom(data, 'Berhasil')};
@@ -377,7 +397,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal memperbarui status'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -395,17 +415,16 @@ class ApiService {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'Belum login'};
     try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl$path'),
-        headers: _authHeaders(token),
-      );
+      final response = await http
+          .patch(Uri.parse('$baseUrl$path'), headers: _authHeaders(token))
+          .timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': _messageFrom(data, 'Berhasil')};
       }
       return {'success': false, 'message': _messageFrom(data, 'Gagal')};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -416,11 +435,13 @@ class ApiService {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'Belum login'};
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$path'),
-        headers: _authHeaders(token, json: true),
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: _authHeaders(token, json: true),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return {
@@ -431,7 +452,7 @@ class ApiService {
       }
       return {'success': false, 'message': _messageFrom(data, 'Gagal')};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -477,7 +498,7 @@ class ApiService {
           'phone': ?phone,
           'photo': ?photo,
         }),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -490,7 +511,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal memperbarui profil'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -556,16 +577,20 @@ class ApiService {
         isUpdate ? '$baseUrl/dosen/matkuls/$id' : '$baseUrl/dosen/matkuls',
       );
       final response = isUpdate
-          ? await http.put(
-              uri,
-              headers: _authHeaders(token, json: true),
-              body: body,
-            )
-          : await http.post(
-              uri,
-              headers: _authHeaders(token, json: true),
-              body: body,
-            );
+          ? await http
+                .put(
+                  uri,
+                  headers: _authHeaders(token, json: true),
+                  body: body,
+                )
+                .timeout(_timeout)
+          : await http
+                .post(
+                  uri,
+                  headers: _authHeaders(token, json: true),
+                  body: body,
+                )
+                .timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {
@@ -578,7 +603,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal menyimpan mata kuliah'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -589,7 +614,7 @@ class ApiService {
       final response = await http.delete(
         Uri.parse('$baseUrl/dosen/matkuls/$id'),
         headers: _authHeaders(token),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -602,7 +627,7 @@ class ApiService {
         'message': _messageFrom(data, 'Gagal menghapus mata kuliah'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -617,14 +642,14 @@ class ApiService {
           'Accept': 'application/json',
         },
         body: jsonEncode({'email': email}),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       return {
         'success': response.statusCode == 200,
         'message': _messageFrom(data, 'Gagal'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -645,14 +670,14 @@ class ApiService {
           'otp': otp,
           'new_password': newPassword,
         }),
-      );
+      ).timeout(_timeout);
       final data = _tryDecode(response.body);
       return {
         'success': response.statusCode == 200,
         'message': _messageFrom(data, 'Gagal'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 
@@ -669,7 +694,7 @@ class ApiService {
         Uri.parse('$baseUrl/chat'),
         headers: _authHeaders(token, json: true),
         body: jsonEncode({'message': message}),
-      );
+      ).timeout(const Duration(seconds: 40)); // AI replies are slower
       final data = _tryDecode(response.body);
       if (response.statusCode == 200 && data is Map && data['reply'] != null) {
         return {'success': true, 'reply': data['reply'].toString()};
@@ -679,7 +704,7 @@ class ApiService {
         'message': _messageFrom(data, 'Asisten sedang tidak tersedia'),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': _networkError(e)};
     }
   }
 

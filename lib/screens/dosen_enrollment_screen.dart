@@ -236,7 +236,14 @@ class _DosenEnrollmentViewState extends State<DosenEnrollmentView> {
         RefreshIndicator(
           onRefresh: _load,
           child: ListView.separated(
-            padding: const EdgeInsets.all(20),
+            // Extra bottom inset when the batch action bar is shown so the
+            // last item is never hidden behind it.
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              _selectionMode && _selectedIds.isNotEmpty ? 96 : 20,
+            ),
             itemCount: _requests.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, i) {

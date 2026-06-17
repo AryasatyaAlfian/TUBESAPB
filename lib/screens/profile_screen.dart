@@ -301,7 +301,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _sectionLabel('TENTANG APLIKASI'),
         const SizedBox(height: 10),
         _infoCard(context, isDark, [
-          _infoRow(context, Icons.info_outline_rounded, 'Versi', '2.0.0'),
           _infoRow(
             context,
             Icons.school_rounded,

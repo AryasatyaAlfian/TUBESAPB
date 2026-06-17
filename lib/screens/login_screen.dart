@@ -185,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
                           decoration: const InputDecoration(
                             hintText: 'nama@universitas.ac.id',
                             prefixIcon: Icon(Icons.email_outlined),
@@ -220,10 +222,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _passCtrl,
                           obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onSubmitted: (_) => _loading ? null : _login(),
                           decoration: InputDecoration(
                             hintText: '••••••••',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
+                              tooltip: _obscure
+                                  ? 'Tampilkan password'
+                                  : 'Sembunyikan password',
                               icon: Icon(
                                 _obscure
                                     ? Icons.visibility_off_outlined
@@ -290,19 +298,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Daftar Sekarang',
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'v2.0.0 • Sistem Absensi Kampus',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.neutral),
                   ),
                 ],
               ),
@@ -315,19 +316,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _typeBtn(String type, IconData icon, String label) {
     final selected = _userType == type;
+    final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _userType = type),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: selected ? cs.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.2),
+                      color: cs.primary.withValues(alpha: 0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -340,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Icon(
                 icon,
                 size: 16,
-                color: selected ? Colors.white : AppColors.neutral,
+                color: selected ? cs.onPrimary : AppColors.neutral,
               ),
               const SizedBox(width: 6),
               Text(
@@ -348,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : AppColors.neutral,
+                  color: selected ? cs.onPrimary : AppColors.neutral,
                 ),
               ),
             ],

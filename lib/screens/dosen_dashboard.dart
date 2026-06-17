@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/common.dart';
 import 'dosen_matkul_screen.dart';
+import 'dosen_presence_screen.dart';
+import 'reports_screen.dart';
+import 'schedule_screen.dart';
 
 class DosenDashboardView extends StatefulWidget {
   const DosenDashboardView({super.key});
@@ -26,11 +29,24 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
   // UI State
   String _chartPeriod = 'week'; // 'week' or 'month'
   bool _expandAbsentToday = false;
+  String _dosenName = '';
+  // Segmented tab: 0 = Hari Ini, 1 = Analitik, 2 = Mahasiswa.
+  // Progressive disclosure — only one group of sections renders at a time,
+  // so the dashboard stays one short scroll instead of seven stacked blocks.
+  int _activeTab = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadName();
     _load();
+  }
+
+  Future<void> _loadName() async {
+    final user = await _api.getSavedUser();
+    if (mounted && user != null) {
+      setState(() => _dosenName = (user['name'] ?? '').toString());
+    }
   }
 
   Future<void> _load() async {
@@ -94,97 +110,219 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         children: [
-          // Summary cards row
-          Row(
-            children: [
-              Expanded(
-                child: _summaryCard(
-                  'Total Mahasiswa',
-                  '$total',
-                  Icons.people_rounded,
-                  AppColors.primary,
-                  const Color(0xFFD6E8FF),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _summaryCard(
-                  'Total Kelas',
-                  '${matkuls.length}',
-                  Icons.class_rounded,
-                  AppColors.tertiary,
-                  const Color(0xFFFFDDB8),
-                ),
-              ),
-            ],
+          _greetingHero(total, matkuls.length),
+          const SizedBox(height: 16),
+          _quickActions(),
+          const SizedBox(height: 20),
+          _tabSelector(),
+          const SizedBox(height: 16),
+          // Crossfade keeps spatial continuity when switching tab content.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: Column(
+              key: ValueKey(_activeTab),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _tabContent(today),
+            ),
           ),
-          const SizedBox(height: 24),
-
-          // Attendance Chart Section
-          _sectionLabel('GRAFIK KEHADIRAN'),
-          const SizedBox(height: 12),
-          _buildAttendanceChart(),
-          const SizedBox(height: 24),
-
-          // Subject Attendance Percentage
-          _sectionLabel('KEHADIRAN PER MATA KULIAH'),
-          const SizedBox(height: 12),
-          _buildSubjectAttendanceList(),
-          const SizedBox(height: 24),
-
-          // At-Risk Students
-          _sectionLabel('MAHASISWA BERISIKO (< 75%)'),
-          const SizedBox(height: 12),
-          _buildAtRiskStudents(),
-          const SizedBox(height: 24),
-
-          // Absent Today
-          _sectionLabel('ABSENT HARI INI'),
-          const SizedBox(height: 12),
-          _buildAbsentToday(),
-          const SizedBox(height: 24),
-
-          // Today's Schedule
-          _sectionLabel('JADWAL HARI INI'),
-          const SizedBox(height: 10),
-          if (today.isEmpty) _emptySchedule() else ...today.map(_scheduleCard),
-          const SizedBox(height: 24),
-
-          // All Subjects
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _sectionLabel('SEMUA MATA KULIAH'),
-              TextButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const DosenMatkulScreen(),
-                    ),
-                  );
-                  _load();
-                },
-                icon: const Icon(Icons.settings_rounded, size: 16),
-                label: const Text('Kelola'),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (matkuls.isEmpty)
-            _emptyCard('Belum ada mata kuliah terdaftar')
-          else
-            ...matkuls.map((m) => _matkulCard(m)),
         ],
       ),
     );
+  }
+
+  // ── Quick Actions ────────────────────────────────────
+  // Surfaces the most-used tasks that were previously buried in the
+  // overflow (⋮) menu — one tap instead of two, and discoverable.
+
+  Widget _quickActions() {
+    return Row(
+      children: [
+        QuickActionButton(
+          icon: Icons.fact_check_rounded,
+          label: 'Presensi',
+          color: AppColors.secondary,
+          onTap: () => _pushAndReload(const DosenPresenceScreen()),
+        ),
+        const SizedBox(width: 10),
+        QuickActionButton(
+          icon: Icons.summarize_rounded,
+          label: 'Laporan',
+          color: AppColors.tertiaryLight,
+          onTap: () => _pushAndReload(const ReportsScreen(role: 'dosen')),
+        ),
+        const SizedBox(width: 10),
+        QuickActionButton(
+          icon: Icons.calendar_month_rounded,
+          label: 'Jadwal',
+          color: AppColors.success,
+          onTap: () => _pushAndReload(const ScheduleScreen(role: 'dosen')),
+        ),
+        const SizedBox(width: 10),
+        QuickActionButton(
+          icon: Icons.class_rounded,
+          label: 'Matkul',
+          color: AppColors.primaryLight,
+          onTap: () => _pushAndReload(const DosenMatkulScreen()),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pushAndReload(Widget screen) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    if (mounted) _load();
+  }
+
+  // ── Segmented Tab Selector ───────────────────────────
+
+  Widget _tabSelector() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final absentCount = _absentToday['data'] is List
+        ? (_absentToday['data'] as List).length
+        : 0;
+    final atRiskCount = _atRiskStudents['data'] is List
+        ? (_atRiskStudents['data'] as List).length
+        : 0;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.surfaceVariantDark
+            : AppColors.surfaceVariantLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          _tabBtn(0, 'Hari Ini', badge: absentCount),
+          _tabBtn(1, 'Analitik'),
+          _tabBtn(2, 'Mahasiswa', badge: atRiskCount, badgeColor: AppColors.error),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabBtn(int index, String label, {int badge = 0, Color? badgeColor}) {
+    final selected = _activeTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? (isDark ? AppColors.surfaceDark : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: [
+              if (selected && !isDark)
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? cs.primary : AppColors.neutral,
+                ),
+              ),
+              if (badge > 0) ...[
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (badgeColor ?? AppColors.warning)
+                        .withValues(alpha: selected ? 1 : 0.85),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$badge',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Tab Content ──────────────────────────────────────
+
+  List<Widget> _tabContent(List today) {
+    switch (_activeTab) {
+      case 1: // Analitik — how are my classes doing?
+        return [
+          const SectionHeader('GRAFIK KEHADIRAN'),
+          const SizedBox(height: 12),
+          _buildAttendanceChart(),
+          const SizedBox(height: 24),
+          const SectionHeader('KEHADIRAN PER MATA KULIAH'),
+          const SizedBox(height: 12),
+          _buildSubjectAttendanceList(),
+        ];
+      case 2: // Mahasiswa — who needs attention?
+        return [
+          const SectionHeader('MAHASISWA BERISIKO (< 75%)'),
+          const SizedBox(height: 12),
+          _buildAtRiskStudents(),
+        ];
+      default: // Hari Ini — what's happening today?
+        return [
+          SectionHeader(
+            'JADWAL HARI INI',
+            trailing: today.isEmpty
+                ? null
+                : Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${today.length} kelas',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 12),
+          if (today.isEmpty) _emptySchedule() else ...today.map(_scheduleCard),
+          const SizedBox(height: 24),
+          const SectionHeader('ABSEN HARI INI'),
+          const SizedBox(height: 12),
+          _buildAbsentToday(),
+        ];
+    }
   }
 
   // ── Attendance Chart Widget ──────────────────────────
@@ -210,6 +348,12 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     // Find max Y for scaling
     final maxValue = spots.isEmpty ? 10.0 : spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final maxY = (maxValue + 5).ceil().toDouble();
+
+    final cs = Theme.of(context).colorScheme;
+    final lineColor = cs.primary;
+    final axisColor = AppColors.neutral;
+    final gridColor = (isDark ? AppColors.dividerDark : AppColors.dividerLight)
+        .withValues(alpha: 0.5);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -248,33 +392,28 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
               LineChartData(
                 gridData: FlGridData(
                   show: true,
-                  drawVerticalLine: true,
+                  drawVerticalLine: false,
                   horizontalInterval: (maxY / 4).ceilToDouble(),
-                  verticalInterval: 1,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: AppColors.dividerLight.withValues(alpha: 0.3),
-                      strokeWidth: 0.5,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: AppColors.dividerLight.withValues(alpha: 0.3),
-                      strokeWidth: 0.5,
-                    );
+                    return FlLine(color: gridColor, strokeWidth: 1);
                   },
                 ),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      reservedSize: 26,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         final keys = chartData.keys.toList();
                         if (index >= 0 && index < keys.length) {
-                          return Text(
-                            keys[index].toString().substring(0, 5),
-                            style: const TextStyle(fontSize: 10),
+                          final k = keys[index].toString();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              k.length > 5 ? k.substring(0, 5) : k,
+                              style: TextStyle(fontSize: 10, color: axisColor),
+                            ),
                           );
                         }
                         return const SizedBox();
@@ -284,24 +423,46 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      reservedSize: 28,
                       interval: (maxY / 4).ceilToDouble(),
                       getTitlesWidget: (value, meta) {
                         return Text(
                           '${value.toInt()}',
-                          style: const TextStyle(fontSize: 10),
+                          style: TextStyle(fontSize: 10, color: axisColor),
                         );
                       },
                     ),
                   ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
-                borderData: FlBorderData(show: true, border: Border.all(color: AppColors.dividerLight)),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.primaryDark,
+                    getTooltipItems: (spots) => spots
+                        .map(
+                          (s) => LineTooltipItem(
+                            '${s.y.toInt()} hadir',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
                     isCurved: true,
-                    color: AppColors.primary,
+                    color: lineColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
@@ -309,15 +470,24 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
                       getDotPainter: (spot, percent, barData, index) {
                         return FlDotCirclePainter(
                           radius: 4,
-                          color: AppColors.primary,
+                          color: lineColor,
                           strokeWidth: 2,
-                          strokeColor: Colors.white,
+                          strokeColor: isDark
+                              ? AppColors.surfaceDark
+                              : Colors.white,
                         );
                       },
                     ),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.primary.withValues(alpha: 0.1),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          lineColor.withValues(alpha: 0.25),
+                          lineColor.withValues(alpha: 0.02),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -405,7 +575,9 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
                       child: LinearProgressIndicator(
                         value: percentage.toDouble() / 100.0,
                         minHeight: 6,
-                        backgroundColor: AppColors.dividerLight,
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         valueColor: AlwaysStoppedAnimation(
                           percentage >= 75 ? AppColors.success : AppColors.error,
                         ),
@@ -638,7 +810,7 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Absent Hari Ini',
+                          'Absen Hari Ini',
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -707,7 +879,7 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
-                              'ABSENT',
+                              'ABSEN',
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 10,
@@ -734,56 +906,133 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     );
   }
 
-  Widget _summaryCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    Color bg,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _greetingHero(int total, int classes) {
+    final firstName = _dosenName.isEmpty
+        ? 'Dosen'
+        : _dosenName.split(' ').first;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: color,
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.neutral,
-              fontWeight: FontWeight.w500,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    greetingIcon(),
+                    size: 15,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    greeting(),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                firstName,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  _heroStat(
+                    Icons.people_rounded,
+                    '$total',
+                    'Mahasiswa',
+                  ),
+                  const SizedBox(width: 12),
+                  _heroStat(
+                    Icons.class_rounded,
+                    '$classes',
+                    'Kelas',
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  Widget _heroStat(IconData icon, String value, String label) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 22),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1.1,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _scheduleCard(dynamic m) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -872,124 +1121,60 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     );
   }
 
-  Widget _matkulCard(dynamic m) {
+  Widget _emptyCard(String msg) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-        ),
+        color: AppColors.info.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  m['nama'] ?? '-',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _chip(
-                      '${m['credits'] ?? '-'} SKS',
-                      AppColors.primary,
-                      const Color(0xFFD6E8FF),
-                    ),
-                    const SizedBox(width: 6),
-                    _chip(
-                      m['hari'] ?? '-',
-                      AppColors.secondary,
-                      const Color(0xFFDCEAFF),
-                    ),
-                    const SizedBox(width: 6),
-                    _chip(
-                      m['jam'] ?? '-',
-                      AppColors.tertiary,
-                      const Color(0xFFFFDDB8),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+      child: Center(
+        child: Text(
+          msg,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.info,
+            fontWeight: FontWeight.w500,
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.class_rounded,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _chip(String text, Color color, Color bg) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: bg,
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
-    ),
-  );
-
-  Widget _emptyCard(String msg) => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: AppColors.infoLight,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Center(
-      child: Text(
-        msg,
-        style: const TextStyle(
-          color: AppColors.info,
-          fontWeight: FontWeight.w500,
+  Widget _emptySchedule() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+      ),
+      child: const Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.event_available_rounded,
+              size: 48,
+              color: AppColors.secondary,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Tidak ada jadwal mengajar hari ini',
+              style: TextStyle(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
-    ),
-  );
-
-  Widget _emptySchedule() => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: AppColors.warningLight,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const Center(
-      child: Column(
-        children: [
-          Icon(Icons.event_busy_rounded, size: 48, color: AppColors.warning),
-          SizedBox(height: 12),
-          Text(
-            'Tidak ada jadwal mengajar hari ini',
-            style: TextStyle(
-              color: AppColors.warning,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+    );
+  }
 
   Widget _errorView() => Center(
     child: Column(
@@ -1012,62 +1197,17 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     ),
   );
 
-  Widget _shimmer() => Shimmer.fromColors(
-    baseColor: const Color(0xFFE2E8F0),
-    highlightColor: const Color(0xFFF8FAFC),
+  Widget _shimmer() => AdaptiveShimmer(
     child: ListView(
       padding: const EdgeInsets.all(20),
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Container(
-          height: 300,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          height: 150,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+      physics: const NeverScrollableScrollPhysics(),
+      children: const [
+        SkeletonBox(height: 150, radius: 22),
+        SizedBox(height: 22),
+        SkeletonBox(height: 300, radius: 16),
+        SizedBox(height: 24),
+        SkeletonBox(height: 150, radius: 16),
       ],
-    ),
-  );
-
-  Widget _sectionLabel(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 1.2,
-      color: AppColors.neutral,
     ),
   );
 }
