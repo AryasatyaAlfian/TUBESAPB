@@ -27,7 +27,7 @@ class EnvironmentConfig {
       case AppEnvironment.staging:
         return 'https://staging.example.com/api'; // TODO: Update staging URL
       case AppEnvironment.production:
-        return 'https://api.example.com/api'; // TODO: Update production URL
+        return 'https://presensi-api-865328445182.asia-southeast2.run.app/api';
     }
   }
 
