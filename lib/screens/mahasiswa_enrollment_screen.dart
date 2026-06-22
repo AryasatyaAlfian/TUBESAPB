@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auto_refresh.dart';
 
 class MahasiswaEnrollmentView extends StatefulWidget {
   const MahasiswaEnrollmentView({super.key});
@@ -10,7 +11,7 @@ class MahasiswaEnrollmentView extends StatefulWidget {
 }
 
 class _MahasiswaEnrollmentViewState extends State<MahasiswaEnrollmentView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutoRefreshMixin {
   final _api = ApiService();
   late TabController _tab;
   bool _loading = true;
@@ -23,16 +24,21 @@ class _MahasiswaEnrollmentViewState extends State<MahasiswaEnrollmentView>
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _load();
+    startAutoRefresh();
   }
 
   @override
   void dispose() {
+    stopAutoRefresh();
     _tab.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  Future<void> onAutoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     final res = await _api.getMahasiswaEnrollments();
     if (!mounted) return;
     setState(() {
@@ -41,7 +47,7 @@ class _MahasiswaEnrollmentViewState extends State<MahasiswaEnrollmentView>
         _available = res['data']['availableMatkuls'] ?? [];
         _enrollments = res['data']['enrollments'] ?? [];
         _error = '';
-      } else {
+      } else if (!silent) {
         _error = res['message'] ?? 'Gagal';
       }
     });

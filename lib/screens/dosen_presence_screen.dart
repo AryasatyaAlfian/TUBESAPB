@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auto_refresh.dart';
 
 class DosenPresenceScreen extends StatefulWidget {
   const DosenPresenceScreen({super.key});
@@ -9,14 +10,14 @@ class DosenPresenceScreen extends StatefulWidget {
   State<DosenPresenceScreen> createState() => _DosenPresenceScreenState();
 }
 
-class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
+class _DosenPresenceScreenState extends State<DosenPresenceScreen>
+    with AutoRefreshMixin {
   final _api = ApiService();
   bool _loading = true;
   bool _saving = false;
   String _error = '';
   List<dynamic> _matkuls = [];
   List<dynamic> _mahasiswas = [];
-  Map<String, dynamic> _presenceMap = {};
   int? _selectedMatkul;
   String _tanggal = DateTime.now().toIso8601String().substring(0, 10);
   final Map<int, String> _statuses = {};
@@ -31,49 +32,96 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen> {
   void initState() {
     super.initState();
     _load();
+    startAutoRefresh();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  Future<void> onAutoRefresh() async {
+    // Jangan timpa perubahan status yang belum disimpan oleh dosen.
+    if (_saving || _hasChanges) return;
+    await _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     final res = await _api.getDosenPresences(
       matkulId: _selectedMatkul,
       tanggal: _tanggal,
     );
     if (!mounted) return;
-    setState(() {
-      _loading = false;
-      if (res['success'] == true) {
-        final data = res['data'] as Map;
-        _matkuls = data['matkuls'] ?? [];
-        _mahasiswas = data['mahasiswas'] ?? [];
-        _selectedMatkul =
-            data['selectedMatkulId'] as int? ??
-            (_matkuls.isNotEmpty ? _matkuls.first['id'] as int : null);
-        _presenceMap = Map<String, dynamic>.from(
-          data['presenceMap'] as Map? ?? {},
-        );
-        _statuses.clear();
-        _lockedIds.clear();
-        for (final m in _mahasiswas) {
-          final id = m['id'] as int;
-          final existing = _presenceMap[id.toString()];
-          final status = existing is Map ? existing['status'] as String? : null;
-          _statuses[id] = status ?? 'alpha';
-          if (existing is Map &&
-              (existing['locked'] == true ||
-                  existing['readonly'] == true ||
-                  existing['finalized'] == true)) {
-            _lockedIds.add(id);
-          }
+
+    if (res['success'] != true) {
+      if (silent) return; // diam-diam: abaikan error sementara
+      setState(() {
+        _loading = false;
+        _error = res['message'] ?? 'Gagal mengambil presensi';
+      });
+      return;
+    }
+
+    // Olah data DI LUAR setState + bungkus try/catch. Tujuannya: kalau ada
+    // error saat parsing (mis. 'presenceMap' bisa berupa array kosong [] ketika
+    // belum ada presensi di tanggal itu, bukan objek {}), layar menampilkan
+    // state error — BUKAN spinner abadi akibat setState gagal di tengah jalan.
+    try {
+      final data = res['data'] as Map;
+      final matkuls = (data['matkuls'] as List?) ?? [];
+      final mahasiswas = (data['mahasiswas'] as List?) ?? [];
+
+      // presenceMap: objek {} bila ada data, atau array kosong [] bila belum ada.
+      final pmRaw = data['presenceMap'];
+      final presenceMap = pmRaw is Map
+          ? Map<String, dynamic>.from(pmRaw)
+          : <String, dynamic>{};
+
+      final selectedMatkul =
+          (data['selectedMatkulId'] as int?) ??
+          (matkuls.isNotEmpty ? matkuls.first['id'] as int : null);
+
+      final statuses = <int, String>{};
+      final lockedIds = <int>{};
+      for (final m in mahasiswas) {
+        final id = m['id'] as int;
+        final existing = presenceMap[id.toString()];
+        final status = existing is Map ? existing['status'] as String? : null;
+        statuses[id] = status ?? 'alpha';
+        if (existing is Map &&
+            (existing['locked'] == true ||
+                existing['readonly'] == true ||
+                existing['finalized'] == true)) {
+          lockedIds.add(id);
         }
+      }
+
+      setState(() {
+        _loading = false;
+        _matkuls = matkuls;
+        _mahasiswas = mahasiswas;
+        _selectedMatkul = selectedMatkul;
+        _statuses
+          ..clear()
+          ..addAll(statuses);
+        _lockedIds
+          ..clear()
+          ..addAll(lockedIds);
         _initialStatuses
           ..clear()
-          ..addAll(_statuses);
+          ..addAll(statuses);
         _error = '';
-      } else {
-        _error = res['message'] ?? 'Gagal mengambil presensi';
-      }
-    });
+      });
+    } catch (e) {
+      if (silent) return; // diam-diam: jangan tampilkan error saat refresh otomatis
+      setState(() {
+        _loading = false;
+        _error = 'Gagal memproses data presensi. Coba lagi.';
+      });
+    }
   }
 
   Future<void> _pickDate() async {

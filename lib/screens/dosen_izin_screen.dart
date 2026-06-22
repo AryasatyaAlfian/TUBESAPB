@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auto_refresh.dart';
 
 class DosenIzinView extends StatefulWidget {
   const DosenIzinView({super.key});
@@ -8,12 +9,12 @@ class DosenIzinView extends StatefulWidget {
   State<DosenIzinView> createState() => _DosenIzinViewState();
 }
 
-class _DosenIzinViewState extends State<DosenIzinView> {
+class _DosenIzinViewState extends State<DosenIzinView> with AutoRefreshMixin {
   final _api = ApiService();
   bool _loading = true;
   String _error = '';
   List<dynamic> _izins = [];
-  
+
   // Multi-select state
   bool _selectionMode = false;
   final Set<int> _selectedIds = {};
@@ -23,10 +24,24 @@ class _DosenIzinViewState extends State<DosenIzinView> {
   void initState() {
     super.initState();
     _load();
+    startAutoRefresh();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  Future<void> onAutoRefresh() async {
+    // Jangan ganggu saat dosen sedang memilih/memproses batch
+    if (_selectionMode || _batchProcessing) return;
+    await _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     final res = await _api.getDosenIzin();
     if (!mounted) return;
     setState(() {
@@ -36,7 +51,7 @@ class _DosenIzinViewState extends State<DosenIzinView> {
       if (res['success'] == true) {
         _izins = res['data']['izins'] ?? [];
         _error = '';
-      } else {
+      } else if (!silent) {
         _error = res['message'] ?? 'Gagal';
       }
     });

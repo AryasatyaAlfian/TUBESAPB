@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/auto_refresh.dart';
 import 'dosen_matkul_screen.dart';
 import 'dosen_presence_screen.dart';
 import 'reports_screen.dart';
@@ -14,7 +15,8 @@ class DosenDashboardView extends StatefulWidget {
   State<DosenDashboardView> createState() => _DosenDashboardViewState();
 }
 
-class _DosenDashboardViewState extends State<DosenDashboardView> {
+class _DosenDashboardViewState extends State<DosenDashboardView>
+    with AutoRefreshMixin {
   final _api = ApiService();
   bool _loading = true;
   String _error = '';
@@ -40,7 +42,22 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     super.initState();
     _loadName();
     _load();
+    startAutoRefresh();
   }
+
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  // Dashboard menembak beberapa endpoint sekaligus, jadi refresh lebih jarang
+  // untuk menekan beban jaringan.
+  @override
+  Duration get autoRefreshInterval => const Duration(seconds: 20);
+
+  @override
+  Future<void> onAutoRefresh() => _load(silent: true);
 
   Future<void> _loadName() async {
     final user = await _api.getSavedUser();
@@ -49,8 +66,8 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
     }
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
 
     // Load basic dashboard data
     final dashRes = await _api.getDosenDashboard();
@@ -68,7 +85,7 @@ class _DosenDashboardViewState extends State<DosenDashboardView> {
       if (dashRes['success'] == true) {
         _data = dashRes['data'] ?? {};
         _error = '';
-      } else {
+      } else if (!silent) {
         _error = dashRes['message'] ?? 'Gagal memuat dashboard';
       }
 

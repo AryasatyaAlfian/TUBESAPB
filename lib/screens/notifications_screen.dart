@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auto_refresh.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -9,7 +10,8 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with AutoRefreshMixin {
   final _api = ApiService();
   bool _loading = true;
   String _error = '';
@@ -19,10 +21,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _load();
+    startAutoRefresh();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  Future<void> onAutoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     final res = await _api.getNotifications();
     if (!mounted) return;
     setState(() {
@@ -30,7 +42,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (res['success'] == true) {
         _items = res['data']['notifications'] ?? [];
         _error = '';
-      } else {
+      } else if (!silent) {
         _error = res['message'] ?? 'Gagal';
       }
     });

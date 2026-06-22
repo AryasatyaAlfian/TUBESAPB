@@ -19,6 +19,7 @@ import 'reports_screen.dart';
 import 'dosen_presence_screen.dart';
 import 'schedule_screen.dart';
 import '../widgets/chat_assistant.dart';
+import '../widgets/auto_refresh.dart';
 
 class HomePage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -27,7 +28,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with AutoRefreshMixin {
   int _currentIndex = 0;
   bool get _isMahasiswa => widget.user['role'] == 'mahasiswa';
 
@@ -79,6 +80,19 @@ class _HomePageState extends State<HomePage> {
     if (!_isMahasiswa) {
       _loadValidationCount();
     }
+    startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  Future<void> onAutoRefresh() async {
+    await _loadUnreadCount();
+    if (!_isMahasiswa) await _loadValidationCount();
   }
 
   Future<void> _loadUnreadCount() async {

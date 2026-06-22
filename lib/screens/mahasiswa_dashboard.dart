@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/auto_refresh.dart';
 import 'analytics_screen.dart';
 import 'reports_screen.dart';
 import 'schedule_screen.dart';
@@ -12,7 +13,8 @@ class MahasiswaDashboardView extends StatefulWidget {
   State<MahasiswaDashboardView> createState() => _MahasiswaDashboardViewState();
 }
 
-class _MahasiswaDashboardViewState extends State<MahasiswaDashboardView> {
+class _MahasiswaDashboardViewState extends State<MahasiswaDashboardView>
+    with AutoRefreshMixin {
   final _api = ApiService();
   bool _loading = true;
   String _error = '';
@@ -22,10 +24,20 @@ class _MahasiswaDashboardViewState extends State<MahasiswaDashboardView> {
   void initState() {
     super.initState();
     _load();
+    startAutoRefresh();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  Future<void> onAutoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     final res = await _api.getMahasiswaDashboard();
     if (!mounted) return;
     setState(() {
@@ -33,7 +45,7 @@ class _MahasiswaDashboardViewState extends State<MahasiswaDashboardView> {
       if (res['success'] == true) {
         _data = res['data'];
         _error = '';
-      } else {
+      } else if (!silent) {
         _error = res['message'] ?? 'Gagal';
       }
     });

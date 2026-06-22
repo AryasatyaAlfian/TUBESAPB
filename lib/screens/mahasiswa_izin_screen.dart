@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auto_refresh.dart';
 
 class MahasiswaIzinView extends StatefulWidget {
   const MahasiswaIzinView({super.key});
@@ -11,7 +12,7 @@ class MahasiswaIzinView extends StatefulWidget {
 }
 
 class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutoRefreshMixin {
   final _api = ApiService();
   final _picker = ImagePicker();
   late TabController _tab;
@@ -30,16 +31,21 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _load();
+    startAutoRefresh();
   }
 
   @override
   void dispose() {
+    stopAutoRefresh();
     _tab.dispose();
     _alasanCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  @override
+  Future<void> onAutoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
     final res = await _api.getMahasiswaIzin();
     if (!mounted) return;
     setState(() {
@@ -47,10 +53,63 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
       if (res['success'] == true) {
         _matkuls = res['data']['matkuls'] ?? [];
         _izins = res['data']['izins'] ?? [];
-      } else {
+      } else if (!silent) {
         _error = res['message'] ?? 'Gagal';
       }
     });
+  }
+
+  /// Nama hari (Indonesia + Inggris) untuk weekday DateTime tertentu,
+  /// supaya cocok dengan kolom `hari` matkul apa pun formatnya.
+  Set<String> _dayNames(int weekday) {
+    const id = {
+      1: 'senin',
+      2: 'selasa',
+      3: 'rabu',
+      4: 'kamis',
+      5: 'jumat',
+      6: 'sabtu',
+      7: 'minggu',
+    };
+    const en = {
+      1: 'monday',
+      2: 'tuesday',
+      3: 'wednesday',
+      4: 'thursday',
+      5: 'friday',
+      6: 'saturday',
+      7: 'sunday',
+    };
+    return {id[weekday]!, en[weekday]!};
+  }
+
+  /// Validasi tanggal terhadap hari jadwal matkul yang dipilih.
+  /// Mengembalikan pesan error bila tidak valid, atau null bila valid.
+  /// Dihitung langsung di build sehingga error tampil tanpa perlu submit.
+  String? get _dateError {
+    if (_selectedMatkul == null || _tanggal.isEmpty) return null;
+    final matkul = _matkuls.firstWhere(
+      (m) => m['id'] == _selectedMatkul,
+      orElse: () => null,
+    );
+    if (matkul == null) return null;
+
+    final date = DateTime.tryParse(_tanggal);
+    if (date == null) return null;
+
+    final today = DateTime.now();
+    final dOnly = DateTime(date.year, date.month, date.day);
+    final tOnly = DateTime(today.year, today.month, today.day);
+    if (dOnly.isBefore(tOnly)) {
+      return 'Tidak bisa mengajukan izin untuk tanggal yang sudah lewat.';
+    }
+
+    final hari = (matkul['hari'] ?? '').toString().trim().toLowerCase();
+    if (hari.isEmpty) return null; // matkul tanpa jadwal hari → lewati
+    if (!_dayNames(date.weekday).contains(hari)) {
+      return 'Tanggal tidak sesuai dengan hari matkul (${matkul['hari']}).';
+    }
+    return null;
   }
 
   Future<void> _pickDate() async {
@@ -128,6 +187,13 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bukti izin (foto) wajib dilampirkan.')),
       );
+      return;
+    }
+    final dateErr = _dateError;
+    if (dateErr != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(dateErr)));
       return;
     }
 
@@ -268,14 +334,16 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
                   : AppColors.surfaceVariantLight,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+                color: _dateError != null
+                    ? AppColors.error
+                    : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
               ),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.calendar_today_rounded,
-                  color: AppColors.neutral,
+                  color: _dateError != null ? AppColors.error : AppColors.neutral,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -293,6 +361,30 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
             ),
           ),
         ),
+        if (_dateError != null) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 14,
+                color: AppColors.error,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _dateError!,
+                  style: const TextStyle(
+                    color: AppColors.error,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         _label('BUKTI IZIN (FOTO)'),
         const SizedBox(height: 8),
@@ -373,7 +465,7 @@ class _MahasiswaIzinViewState extends State<MahasiswaIzinView>
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: _submitting ? null : _submit,
+            onPressed: (_submitting || _dateError != null) ? null : _submit,
             icon: _submitting
                 ? const SizedBox(
                     width: 18,
