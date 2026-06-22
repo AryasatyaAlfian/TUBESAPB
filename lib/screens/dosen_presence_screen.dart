@@ -80,9 +80,15 @@ class _DosenPresenceScreenState extends State<DosenPresenceScreen>
           ? Map<String, dynamic>.from(pmRaw)
           : <String, dynamic>{};
 
+      // selectedMatkulId bisa int (saat default dari server) ATAU string "5"
+      // (saat dikirim balik dari query param matkul_id). Tangani keduanya
+      // supaya ganti matkul/tanggal tidak melempar error cast.
+      final selRaw = data['selectedMatkulId'];
       final selectedMatkul =
-          (data['selectedMatkulId'] as int?) ??
-          (matkuls.isNotEmpty ? matkuls.first['id'] as int : null);
+          (selRaw is int
+              ? selRaw
+              : (selRaw is String ? int.tryParse(selRaw) : null)) ??
+          (matkuls.isNotEmpty ? (matkuls.first['id'] as num).toInt() : null);
 
       final statuses = <int, String>{};
       final lockedIds = <int>{};

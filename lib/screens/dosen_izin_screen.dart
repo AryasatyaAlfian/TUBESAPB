@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auto_refresh.dart';
@@ -150,7 +151,7 @@ class _DosenIzinViewState extends State<DosenIzinView> with AutoRefreshMixin {
       return;
     }
     final isImage = RegExp(
-      r'\.(jpg|jpeg|png)(\?|$)',
+      r'\.(jpg|jpeg|png|webp|gif)(\?|$)',
       caseSensitive: false,
     ).hasMatch(url);
     showDialog(
@@ -160,17 +161,73 @@ class _DosenIzinViewState extends State<DosenIzinView> with AutoRefreshMixin {
         content: isImage
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(url, fit: BoxFit.contain),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.broken_image_outlined,
+                        size: 48,
+                        color: AppColors.neutral,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Gambar tidak dapat dimuat.\nCoba buka di peramban.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               )
-            : SelectableText(url),
+            : const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Berkas bukti (PDF/dokumen).\nKetuk "Buka" untuk melihatnya.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Tutup'),
           ),
+          FilledButton.icon(
+            onPressed: () => _openBuktiExternal(url),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: const Text('Buka'),
+          ),
         ],
       ),
     );
+  }
+
+  /// Membuka URL bukti di peramban/viewer eksternal — bekerja untuk gambar
+  /// maupun PDF/dokumen, dan menampilkan pesan bila gagal.
+  Future<void> _openBuktiExternal(String url) async {
+    final uri = Uri.tryParse(url);
+    var ok = false;
+    if (uri != null) {
+      try {
+        ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        ok = false;
+      }
+    }
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka bukti.')),
+      );
+    }
   }
 
   Color _statusColor(String status) => switch (status) {
